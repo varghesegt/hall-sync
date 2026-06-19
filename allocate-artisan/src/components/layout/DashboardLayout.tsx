@@ -1,0 +1,157 @@
+import { useState, useEffect } from "react";
+import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "./AppSidebar";
+import { Button } from "@/components/ui/button";
+import { LogOut, Loader2, BookOpen } from "lucide-react";
+import { toast } from "sonner";
+import { Separator } from "@/components/ui/separator";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import apiClient from "@/api/axios";
+import AdvancedTour from "@/components/onboarding/AdvancedTour";
+
+export function DashboardLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+
+  const [showTour, setShowTour] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await apiClient.post("/auth/logout");
+    } catch (e) {
+      console.warn("Logout API failed, continuing with local cleanup");
+    } finally {
+      localStorage.removeItem("coe_auth");
+      toast.success("Logged Out", { description: "Session closed successfully." });
+      navigate("/login");
+    }
+  };
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      localStorage.removeItem("coe_auth");
+      toast.error("Session Expired", { description: "Please log in again." });
+      navigate("/login");
+    };
+
+    window.addEventListener("hallsync:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("hallsync:unauthorized", handleUnauthorized);
+  }, [navigate]);
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["tenant-settings"],
+    queryFn: async () => {
+      const res = await apiClient.get("/settings");
+      return res.data;
+    },
+    staleTime: Infinity,
+  });
+
+  // Determine if the interactive tour should be shown
+  useEffect(() => {
+    if (!settings) return;
+
+    const tourComplete = localStorage.getItem("hallsync_interactive_tour_complete");
+
+    // Show tour ONLY if college IS configured AND tour was never completed.
+    // If not configured, we let them go to Settings page first. Once configured, they'll see the tour.
+    if (settings.isConfigured && !tourComplete) {
+      // Small delay to ensure DOM is fully rendered before targeting elements
+      setTimeout(() => setShowTour(true), 1000);
+    }
+  }, [settings, location.pathname]); // re-run if they finish configuring and come back to dashboard
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50/50">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Force onboarding if not configured
+  if (settings && settings.isConfigured === false && location.pathname !== "/dashboard/settings") {
+    toast.warning("Initial Setup Required", { description: "Please complete college configuration first." });
+    return <Navigate to="/dashboard/settings" replace />;
+  }
+
+  const handleTourComplete = () => {
+    setShowTour(false);
+    localStorage.setItem("hallsync_interactive_tour_complete", "true");
+  };
+
+  const handleReopenTutorial = () => {
+    localStorage.removeItem("hallsync_interactive_tour_complete");
+    // Only re-open if they are on a safe page, otherwise take them to dashboard
+    if (location.pathname !== "/dashboard" && location.pathname !== "/dashboard/settings") {
+      navigate("/dashboard");
+    }
+    // Force unmount the tour if it's already mounted but finished
+    setShowTour(false);
+    // Remount after a tiny delay
+    setTimeout(() => setShowTour(true), 100);
+  };
+
+  const userEmail = localStorage.getItem("user_email") || "coe1@krce.ac.in";
+
+  return (
+    <>
+      {/* Advanced Interactive Tour Overlay */}
+      <AdvancedTour
+        run={showTour}
+        onFinish={handleTourComplete}
+      />
+
+      <SidebarProvider>
+        <AppSidebar settings={settings} />
+        <SidebarInset className="bg-transparent min-w-0 flex-1 w-full max-w-full">
+          <header className="flex h-20 shrink-0 items-center gap-2 border-b border-white/40 bg-white/40 backdrop-blur-3xl px-4 md:px-8 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-16 sticky top-0 z-50 min-w-0 w-full max-w-full shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)]">
+            <div className="flex items-center gap-4 px-2 w-full min-w-0">
+              <SidebarTrigger className="-ml-2 shrink-0 tour-sidebar-trigger hover:bg-white/60 transition-colors rounded-xl" />
+              <Separator orientation="vertical" className="mr-2 h-6 bg-slate-300/50 shrink-0" />
+              <div className="flex-1 min-w-0" />
+              
+              <div className="flex items-center gap-8 shrink-0 tour-header-controls">
+                {/* Re-open tutorial button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleReopenTutorial}
+                  className="text-slate-500 hover:text-primary gap-2 h-9 px-4 text-[13px] font-bold hidden md:flex rounded-xl hover:bg-primary/10 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] border border-transparent hover:border-primary/20"
+                  title="Reopen the onboarding tutorial"
+                >
+                  <BookOpen size={16} strokeWidth={2.5} />
+                  <span className="hidden lg:inline">Tour Guide</span>
+                </Button>
+
+                <div className="hidden md:flex flex-col items-end mr-2">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-[0.2em]">Authenticated Session</span>
+                  <span className="text-sm font-black text-slate-900 mt-0.5 tracking-tight">{userEmail}</span>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="group h-10 px-5 border border-rose-200 bg-white/80 backdrop-blur-md text-rose-600 hover:bg-rose-600 hover:text-white hover:border-rose-600 hover:shadow-[0_8px_20px_-6px_rgba(225,29,72,0.5)] gap-2.5 transition-all duration-500 rounded-xl"
+                >
+                  <LogOut size={16} strokeWidth={2.5} className="transition-transform duration-300 group-hover:-translate-x-0.5" />
+                  <span className="font-bold text-[13px] uppercase tracking-widest hidden sm:inline-block">Sign Out</span>
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 p-4 md:p-8 lg:p-10 animate-in fade-in duration-700 overflow-x-hidden min-w-0 w-full max-w-full">
+            <div className="max-w-7xl mx-auto w-full">
+              <Outlet />
+            </div>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </>
+  );
+}
+

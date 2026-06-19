@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: hallsync-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-exam_seat_allocation}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-jittu007}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - hallsync-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: hallsync-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME:-exam_seat_allocation}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-jittu007}
+      APP_SECURITY_USERNAME: ${COE_USER:-coe1@krce.ac.in}
+      APP_SECURITY_PASSWORD: ${COE_PASS:-skm@8115}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      # Production JVM Optimization
+      JAVA_OPTS: >-
+        -Xms512m -Xmx2048m 
+        -XX:+UseG1GC 
+        -XX:+ExitOnOutOfMemoryError
+        -Djava.security.egd=file:/dev/./urandom
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    # High-performance transient data storage
+    tmpfs:
+      - /app/data/parser-tmp:size=128M,mode=1777
+    networks:
+      - hallsync-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  hallsync-network:
+    driver: bridge
+
+volumes:
+  pg_data:

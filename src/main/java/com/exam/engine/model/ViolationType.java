@@ -1,0 +1,11 @@
+package com.exam.engine.model;
+
+public enum ViolationType {
+    CONSECUTIVE_DEPT_ALLOWED,
+    HALL_REUSE_ALLOWED,
+    PATTERN_DEVIATION,
+    SUBJECT_ADJACENCY_VIOLATION,
+    SEASON_VIOLATION,
+    DEADLOCK_RELAXED,
+    TAIL_REBALANCED
+}

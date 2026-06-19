@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 98%;
+    --foreground: 224 71.4% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 10%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 95%;
+    --secondary-foreground: 220 40% 20%;
+
+    --muted: 220 20% 95%;
+    --muted-foreground: 220 15% 45%;
+
+    --accent: 214 100% 96%;
+    --accent-foreground: 221 83% 30%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 90%;
+    --input: 220 15% 90%;
+    --ring: 221 83% 53%;
+
+    --radius: 1rem;
+    
+    /* Sidebar Variables */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 224 71.4% 10%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 100% 96%;
+    --sidebar-accent-foreground: 221 83% 30%;
+    --sidebar-border: 220 15% 90%;
+    --sidebar-ring: 221 83% 53%;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/60 shadow-[0_8px_32px_0_rgba(0,0,0,0.04)];
+  }
+  
+  .glass-dark {
+    @apply bg-slate-900/80 backdrop-blur-2xl border border-slate-700/50 shadow-2xl;
+  }
+
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-2xl border border-white/50 shadow-sm rounded-2xl;
+  }
+
+  .mesh-gradient {
+    background-color: #f8fafc;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(221, 83%, 53%, 0.12) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(210, 100%, 55%, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(200, 80%, 55%, 0.08) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, hsla(230, 80%, 55%, 0.1) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  .animate-float {
+    animation: float 8s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    50% { transform: translateY(-12px) scale(1.02); }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border selection:bg-primary/20 selection:text-primary;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased font-sans mesh-gradient min-h-screen;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  
+  /* Refined typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-semibold text-slate-900;
+  }
+}

@@ -1,0 +1,3 @@
+ALTER TABLE faculty ADD COLUMN college_name VARCHAR(255);
+ALTER TABLE faculty ADD COLUMN is_internal BOOLEAN DEFAULT true;
+ALTER TABLE faculty ADD COLUMN is_available BOOLEAN DEFAULT true;

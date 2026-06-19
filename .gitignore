@@ -1,0 +1,41 @@
+# Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
+gen/
+
+# Eclipse
+.project
+.classpath
+.factorypath
+.settings/
+
+# VS Code
+.vscode/
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+allocate-artisan/node_modules/
+allocate-artisan/dist/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Project Specific
+*.pdf
+logs/
+uploads/
+scratch/
+data/parser-tmp/
