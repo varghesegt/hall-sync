@@ -107,38 +107,37 @@ export function DashboardLayout() {
       <SidebarProvider>
         <AppSidebar settings={settings} />
         <SidebarInset className="bg-transparent min-w-0 flex-1 w-full max-w-full">
-          <header className="flex h-20 shrink-0 items-center gap-2 border-b border-white/40 bg-white/40 backdrop-blur-3xl px-4 md:px-8 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-16 sticky top-0 z-50 min-w-0 w-full max-w-full shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)]">
+          <header className="flex h-[72px] shrink-0 items-center gap-2 border-b border-slate-200/50 bg-white/70 backdrop-blur-2xl px-4 md:px-8 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-16 sticky top-0 z-50 min-w-0 w-full max-w-full shadow-[0_4px_30px_-10px_rgba(0,0,0,0.05)]">
             <div className="flex items-center gap-4 px-2 w-full min-w-0">
-              <SidebarTrigger className="-ml-2 shrink-0 tour-sidebar-trigger hover:bg-white/60 transition-colors rounded-xl" />
-              <Separator orientation="vertical" className="mr-2 h-6 bg-slate-300/50 shrink-0" />
+              <SidebarTrigger className="-ml-2 shrink-0 tour-sidebar-trigger hover:bg-slate-100 hover:text-indigo-600 transition-colors rounded-xl" />
+              <Separator orientation="vertical" className="mr-2 h-6 bg-slate-200 shrink-0" />
               <div className="flex-1 min-w-0" />
               
-              <div className="flex items-center gap-8 shrink-0 tour-header-controls">
+              <div className="flex items-center gap-6 shrink-0 tour-header-controls">
                 {/* Re-open tutorial button */}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleReopenTutorial}
-                  className="text-slate-500 hover:text-primary gap-2 h-9 px-4 text-[13px] font-bold hidden md:flex rounded-xl hover:bg-primary/10 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] border border-transparent hover:border-primary/20"
+                  className="text-slate-500 hover:text-indigo-600 gap-2 h-10 px-4 text-[13px] font-bold hidden md:flex rounded-xl hover:bg-indigo-50 transition-all duration-300 border border-transparent hover:border-indigo-100"
                   title="Reopen the onboarding tutorial"
                 >
                   <BookOpen size={16} strokeWidth={2.5} />
-                  <span className="hidden lg:inline">Tour Guide</span>
+                  <span className="hidden lg:inline">Interactive Guide</span>
                 </Button>
 
-                <div className="hidden md:flex flex-col items-end mr-2">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-[0.2em]">Authenticated Session</span>
-                  <span className="text-sm font-black text-slate-900 mt-0.5 tracking-tight">{userEmail}</span>
+                <div className="hidden md:flex flex-col items-end mr-2 justify-center">
+                  <span className="text-[13px] font-extrabold text-slate-800 tracking-tight">{userEmail}</span>
                 </div>
 
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleLogout}
-                  className="group h-10 px-5 border border-rose-200 bg-white/80 backdrop-blur-md text-rose-600 hover:bg-rose-600 hover:text-white hover:border-rose-600 hover:shadow-[0_8px_20px_-6px_rgba(225,29,72,0.5)] gap-2.5 transition-all duration-500 rounded-xl"
+                  className="group h-10 px-5 border border-slate-200/60 bg-white text-slate-600 hover:bg-slate-900 hover:text-white hover:border-slate-900 shadow-sm hover:shadow-[0_8px_20px_-6px_rgba(15,23,42,0.3)] gap-2.5 transition-all duration-300 rounded-xl"
                 >
                   <LogOut size={16} strokeWidth={2.5} className="transition-transform duration-300 group-hover:-translate-x-0.5" />
-                  <span className="font-bold text-[13px] uppercase tracking-widest hidden sm:inline-block">Sign Out</span>
+                  <span className="font-bold text-[12px] uppercase tracking-widest hidden sm:inline-block">Sign Out</span>
                 </Button>
               </div>
             </div>

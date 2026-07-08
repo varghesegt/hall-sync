@@ -39,7 +39,7 @@ public class NotificationService {
     /**
      * Sends duty allocation emails to all faculty assigned to a batch.
      */
-    public Map<String, Object> sendDutyAllocationEmails(UUID batchId) {
+    public Map<String, Object> sendDutyAllocationEmails(UUID batchId, String targetCategory) {
         AllocationBatch batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new IllegalArgumentException("Batch not found: " + batchId));
 
@@ -47,6 +47,15 @@ public class NotificationService {
         int sent = 0, failed = 0, skipped = 0;
 
         for (InvigilatorDuty duty : duties) {
+            if ("INVIGILATOR_ONLY".equalsIgnoreCase(targetCategory) && !"INVIGILATOR".equalsIgnoreCase(duty.getDutyType())) {
+                skipped++;
+                continue;
+            }
+            if ("OTHER_DUTIES".equalsIgnoreCase(targetCategory) && "INVIGILATOR".equalsIgnoreCase(duty.getDutyType())) {
+                skipped++;
+                continue;
+            }
+
             Faculty faculty = duty.getFaculty();
             if (faculty == null || faculty.getEmail() == null || faculty.getEmail().isBlank()) {
                 skipped++;

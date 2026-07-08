@@ -165,7 +165,10 @@ public class InternalConstraintSolver {
 
     private boolean sameSubject(Student a, Student b) {
         if (a.subjectCode() == null || b.subjectCode() == null) return false;
-        return a.subjectCode().trim().equalsIgnoreCase(b.subjectCode().trim());
+        String sa = a.subjectCode().trim();
+        String sb = b.subjectCode().trim();
+        if (sa.isEmpty() || sa.equalsIgnoreCase("N/A") || sa.equals("-")) return false;
+        return sa.equalsIgnoreCase(sb);
     }
 
     private int auditHorizontalAdjacency(Student[][] grid, String hallId) {

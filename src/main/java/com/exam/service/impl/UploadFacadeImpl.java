@@ -11,6 +11,7 @@ import com.exam.parser.model.ParseResult;
 import com.exam.parser.model.ParseStatus;
 import com.exam.repository.UploadedFileRepository;
 import com.exam.service.UploadService;
+import com.exam.service.impl.S3FileStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -50,13 +51,19 @@ public class UploadFacadeImpl implements UploadService {
     private final PdfParserPipeline parserPipeline;
     private final UploadedFileRepository fileRepository;
     private final ParserConfig parserConfig;
+    private final S3FileStorageService s3FileStorageService;
+    private final ParseResultCacheService cacheService;
 
     public UploadFacadeImpl(PdfParserPipeline parserPipeline,
                             UploadedFileRepository fileRepository,
-                            ParserConfig parserConfig) {
+                            ParserConfig parserConfig,
+                            S3FileStorageService s3FileStorageService,
+                            ParseResultCacheService cacheService) {
         this.parserPipeline = parserPipeline;
         this.fileRepository = fileRepository;
         this.parserConfig = parserConfig;
+        this.s3FileStorageService = s3FileStorageService;
+        this.cacheService = cacheService;
     }
 
     @Override
@@ -112,10 +119,10 @@ public class UploadFacadeImpl implements UploadService {
         }
 
         // --- Fix #3: Cache with config version key (determinism across deployments) ---
-        fileRepository.cacheParseResult(finalFile.getId(), result, parserConfig.getConfigVersion());
+        cacheService.cacheParseResult(finalFile.getId(), result, parserConfig.getConfigVersion());
 
-        // Store raw bytes for fallback re-parse
-        fileRepository.storeFileBytes(finalFile.getId(), pdfBytes);
+        // Store raw bytes in AWS S3 for fallback re-parse
+        s3FileStorageService.storeFileBytes(finalFile.getId(), pdfBytes, file.getContentType());
 
         // --- Stage C: If FATAL errors → throw with full error list ---
         if (result.status() == ParseStatus.FAILED) {
@@ -170,17 +177,17 @@ public class UploadFacadeImpl implements UploadService {
 
     @Override
     public com.exam.dto.StudentPreviewResponse getPreview(UUID fileId) {
-        var cached = fileRepository.getCachedParseResult(fileId, parserConfig.getConfigVersion());
+        var cached = cacheService.getCachedParseResult(fileId, parserConfig.getConfigVersion());
         
         if (cached == null) {
             // Fallback: Check if file metadata exists but cache is gone (e.g. restart)
             var metadata = fileRepository.findById(fileId);
             if (metadata.isPresent()) {
-                byte[] bytes = fileRepository.getFileBytes(fileId);
+                byte[] bytes = s3FileStorageService.getFileBytes(fileId);
                 if (bytes != null) {
                     try {
                         var result = parserPipeline.parse(bytes);
-                        fileRepository.cacheParseResult(fileId, result, parserConfig.getConfigVersion());
+                        cacheService.cacheParseResult(fileId, result, parserConfig.getConfigVersion());
                         cached = result;
                     } catch (Exception e) {
                         logger.error("Failed to re-parse file for preview: {}", fileId, e);

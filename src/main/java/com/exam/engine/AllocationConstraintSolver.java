@@ -119,13 +119,21 @@ public class AllocationConstraintSolver {
         }
 
         // =============================================
-        // 5. POST-ALLOCATION AUDIT (on logical grid)
+        // 5. POST-ALLOCATION AUDIT & ADDED RESOLUTION LAYER (on logical grid)
         // =============================================
-        int adjacencyViolations = auditHorizontalAdjacency(grid, hallId);
-        if (adjacencyViolations > 0) {
-            logger.warn("Hall {}: AUDIT — {} subject adjacency warnings", hallId, adjacencyViolations);
+        int initialViolations = auditHorizontalAdjacency(grid, hallId);
+        if (initialViolations > 0) {
+            logger.warn("Hall {}: Initial AUDIT — {} subject adjacency warnings", hallId, initialViolations);
+        }
+        
+        // ADDED LAYER: Strict swap to resolve horizontal and diagonal adjacency
+        resolveAdjacencyViolations(grid);
+        
+        int finalViolations = auditHorizontalAdjacency(grid, hallId);
+        if (finalViolations == 0) {
+            logger.info("Hall {}: AUDIT PASSED — Zero adjacency violations after resolution layer", hallId);
         } else {
-            logger.info("Hall {}: AUDIT PASSED — Zero adjacency violations", hallId);
+            logger.warn("Hall {}: AUDIT — {} subject adjacency warnings remain after resolution layer", hallId, finalViolations);
         }
 
         // =============================================
@@ -164,7 +172,10 @@ public class AllocationConstraintSolver {
     /** Safe null-aware subject comparison */
     private boolean sameSubject(Student a, Student b) {
         if (a.subjectCode() == null || b.subjectCode() == null) return false;
-        return a.subjectCode().trim().equalsIgnoreCase(b.subjectCode().trim());
+        String sa = a.subjectCode().trim();
+        String sb = b.subjectCode().trim();
+        if (sa.isEmpty() || sa.equalsIgnoreCase("N/A") || sa.equals("-")) return false;
+        return sa.equalsIgnoreCase(sb);
     }
 
     /**
@@ -333,5 +344,77 @@ public class AllocationConstraintSolver {
             }
         }
         return null;
+    }
+
+    // ===================== ADDED RESOLUTION LAYER =====================
+
+    /**
+     * ADDED LAYER: Post-allocation optimizer to strictly resolve adjacency problems 
+     * without altering existing logic.
+     * Swaps students WITHIN THE SAME COLUMN to fix horizontal and diagonal adjacency.
+     */
+    private void resolveAdjacencyViolations(Student[][] grid) {
+        boolean swapped;
+        int maxIterations = 10;
+        
+        do {
+            swapped = false;
+            for (int r = 1; r <= 5; r++) {
+                for (int c = 0; c < 5; c++) {
+                    if (grid[r][c] == null) continue;
+                    
+                    if (hasAdjacencyViolation(grid, r, c)) {
+                        // Try to swap with someone in the SAME COLUMN
+                        for (int targetRow = 1; targetRow <= 5; targetRow++) {
+                            if (targetRow == r) continue;
+                            
+                            // Check if swapping would fix the current violation WITHOUT creating a new one
+                            Student temp = grid[r][c];
+                            grid[r][c] = grid[targetRow][c];
+                            grid[targetRow][c] = temp;
+                            
+                            // We must check if the new positions are safe. 
+                            // Since temp might be null, only check if it is non-null.
+                            boolean targetSafe = (grid[targetRow][c] == null || !hasAdjacencyViolation(grid, targetRow, c));
+                            boolean currentSafe = (grid[r][c] == null || !hasAdjacencyViolation(grid, r, c));
+                            
+                            if (targetSafe && currentSafe) {
+                                swapped = true;
+                                break; // Swap successful!
+                            } else {
+                                // Revert
+                                temp = grid[r][c];
+                                grid[r][c] = grid[targetRow][c];
+                                grid[targetRow][c] = temp;
+                            }
+                        }
+                    }
+                }
+            }
+            maxIterations--;
+        } while (swapped && maxIterations > 0);
+    }
+    
+    private boolean hasAdjacencyViolation(Student[][] grid, int row, int col) {
+        Student current = grid[row][col];
+        if (current == null || current.subjectCode() == null) return false;
+        
+        int[][] offsets = {
+            {0, -1}, {0, 1},                       // horizontal
+            {-1, -1}, {-1, 1}, {1, -1}, {1, 1}     // diagonals
+        };
+        
+        for (int[] offset : offsets) {
+            int r = row + offset[0];
+            int c = col + offset[1];
+            if (r >= 1 && r <= 5 && c >= 0 && c < 5) {
+                Student neighbor = grid[r][c];
+                if (neighbor != null && neighbor.subjectCode() != null 
+                    && current.subjectCode().equals(neighbor.subjectCode())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

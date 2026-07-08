@@ -25,67 +25,61 @@ function PremiumTooltip({
   return (
     <div
       {...tooltipProps}
-      className="bg-[#0a0a0a]/80 backdrop-blur-3xl border border-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_30px_60px_-15px_rgba(0,0,0,0.8),0_0_30px_-5px_rgba(99,102,241,0.15)] rounded-3xl w-full max-w-[380px] overflow-hidden animate-in zoom-in-[0.97] fade-in duration-500 font-sans group/tooltip"
+      className="bg-[#05050a]/90 backdrop-blur-3xl border border-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_40px_80px_-20px_rgba(0,0,0,0.9),0_0_40px_-5px_rgba(99,102,241,0.2)] rounded-3xl w-full max-w-[420px] overflow-hidden animate-in zoom-in-[0.97] slide-in-from-bottom-2 fade-in duration-500 font-sans group/tooltip"
     >
       {/* Animated Top Progress Bar */}
-      <div className="w-full h-[2px] bg-white/[0.05] relative overflow-hidden">
+      <div className="w-full h-[2px] bg-white/[0.03] relative overflow-hidden">
         <div 
-          className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 transition-all duration-700 ease-out shadow-[0_0_10px_rgba(99,102,241,0.8)]"
+          className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 transition-all duration-700 ease-out shadow-[0_0_15px_rgba(99,102,241,0.9)]"
           style={{ width: `${((index + 1) / size) * 100}%` }}
         />
       </div>
 
-      <div className="p-7 relative">
+      <div className="p-8 relative">
         {/* Deep ambient background mesh glow */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-[50px] pointer-events-none opacity-50 group-hover/tooltip:opacity-100 transition-opacity duration-1000" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[40px] pointer-events-none opacity-30" />
+        <div className="absolute top-0 right-0 w-56 h-56 bg-indigo-500/10 rounded-full blur-[60px] pointer-events-none opacity-40 group-hover/tooltip:opacity-100 transition-opacity duration-1000" />
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/10 rounded-full blur-[50px] pointer-events-none opacity-20" />
 
         {/* Header / Title */}
-        <div className="flex items-start justify-between mb-5 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-b from-slate-800 to-slate-900 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_10px_rgba(0,0,0,0.5)] border border-white/[0.05] shrink-0 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-transparent" />
-              <div className="relative z-10">
+        <div className="flex items-start justify-between mb-6 relative z-10 pr-24">
+          <div className="flex items-center gap-5">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-950 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_8px_16px_rgba(0,0,0,0.6)] border border-white/[0.05] shrink-0 relative overflow-hidden group-hover/tooltip:border-indigo-500/30 transition-colors duration-500">
+              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-transparent opacity-50 group-hover/tooltip:opacity-100 transition-opacity duration-500" />
+              <div className="relative z-10 scale-110">
                 {step.data?.icon || <Hexagon className="h-5 w-5 text-indigo-400" />}
               </div>
             </div>
             <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="flex items-center gap-1.5 mb-2">
                 {Array.from({ length: size }).map((_, i) => (
                   <div 
                     key={i} 
-                    className={`h-1 rounded-full transition-all duration-300 ${i === index ? 'w-3 bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]' : i < index ? 'w-1 bg-indigo-400/40' : 'w-1 bg-slate-700'}`}
+                    className={`h-1 rounded-full transition-all duration-300 ${i === index ? 'w-4 bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.9)]' : i < index ? 'w-1.5 bg-indigo-400/40' : 'w-1.5 bg-slate-700'}`}
                   />
                 ))}
               </div>
-              <h3 className="font-semibold text-[17px] text-slate-100 tracking-tight leading-tight">
+              <h3 className="font-bold text-[19px] text-slate-50 tracking-tight leading-tight">
                 {step.title}
               </h3>
             </div>
           </div>
-          <button
-            {...closeProps}
-            className="text-slate-500 hover:text-white transition-all shrink-0 p-1.5 rounded-lg hover:bg-white/10"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
 
         {/* Content Body */}
-        <div className="text-[14px] text-slate-400 leading-[1.7] tracking-wide relative z-10 font-medium">
+        <div className="text-[14.5px] text-slate-400/90 leading-[1.75] tracking-wide relative z-10 font-medium pr-2">
           {step.content}
         </div>
       </div>
 
       {/* Footer Controls */}
-      <div className="px-7 py-5 bg-[#050505]/60 border-t border-white/[0.04] flex items-center justify-between relative z-10">
+      <div className="px-8 py-5 bg-[#020205]/80 border-t border-white/[0.04] flex items-center justify-between relative z-10">
         <div className="flex items-center gap-2">
           {!isLastStep && (
             <button
               {...skipProps}
-              className="text-[11px] font-bold text-slate-500 hover:text-slate-300 transition-colors tracking-[0.15em] uppercase px-2 py-1"
+              className="text-[10px] font-black text-slate-600 hover:text-slate-300 transition-colors tracking-[0.2em] uppercase px-2 py-1"
             >
-              Dismiss
+              Dismiss Tour
             </button>
           )}
         </div>
@@ -95,23 +89,23 @@ function PremiumTooltip({
               variant="ghost"
               size="sm"
               {...backProps}
-              className="h-9 px-4 text-[13px] gap-1.5 font-semibold text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all"
+              className="h-10 px-5 text-[13px] gap-2 font-bold text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
           )}
           <Button
             size="sm"
             {...primaryProps}
-            className="group h-9 px-6 text-[13px] gap-2 font-bold bg-white hover:bg-slate-200 text-black rounded-full shadow-[0_0_15px_rgba(255,255,255,0.15)] transition-all"
+            className="group h-10 px-7 text-[13px] gap-2 font-black bg-white hover:bg-indigo-50 text-slate-950 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.15)] transition-all hover:scale-105"
           >
             {isLastStep ? (
-              "Complete"
+              "Complete Setup"
             ) : (
               <>
                 Continue 
-                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </>
             )}
           </Button>
@@ -126,82 +120,82 @@ export default function AdvancedTour({ run, onFinish }: AdvancedTourProps) {
 
   const steps: Step[] = [
     {
-      target: "#tour-dashboard",
-      title: "Platform Navigation",
+      target: "#tour-dashboard-semester",
+      title: "Intelligent Examination Planning",
       content: (
         <p>
-          Welcome to the HallSync ecosystem. We will guide you through the core modules of your administrative interface, starting with the Command Center.
+          Process student nominal rolls and let the allocation engine compute optimal, collision-free seating arrangements automatically.
         </p>
       ),
       placement: "right-start",
       skipBeacon: true,
-      data: { icon: <Layers className="h-4 w-4 text-white" /> }
-    },
-    {
-      target: "#tour-dashboard-semester",
-      title: "Examination Planning",
-      content: (
-        <p>
-          Process student nominal rolls and let the intelligent allocation engine compute optimal seating arrangements.
-        </p>
-      ),
-      placement: "right-start",
-      data: { icon: <Component className="h-4 w-4 text-white" /> }
+      data: { icon: <Component className="h-5 w-5 text-indigo-300" /> }
     },
     {
       target: "#tour-dashboard-duty",
-      title: "Resource Allocation",
+      title: "Algorithmic Duty Allocation",
       content: (
         <p>
-          Automated invigilator distribution. The system automatically balances departmental workloads to ensure perfect equity.
+          The system automatically balances departmental workloads to ensure perfect equity across all faculty members and invigilators.
         </p>
       ),
       placement: "right-start",
-      data: { icon: <Briefcase className="h-4 w-4 text-white" /> }
+      data: { icon: <Briefcase className="h-5 w-5 text-purple-300" /> }
     },
     {
-      target: "#tour-dashboard-qp-security",
-      title: "Security & Operations",
+      target: "#tour-dashboard-appointments",
+      title: "Automated Appointment Orders",
       content: (
         <p>
-          Maintain strict operational integrity. Track physical question paper distributions and log incident reports dynamically.
+          Instantly generate professional, print-ready appointment orders for Invigilators, Lab Incharges, and Examiners with one click.
         </p>
       ),
       placement: "right-start",
-      data: { icon: <ShieldCheck className="h-4 w-4 text-white" /> }
+      data: { icon: <Layers className="h-5 w-5 text-blue-300" /> }
     },
     {
-      target: "#tour-dashboard-compliance-vault",
-      title: "Compliance Vault",
+      target: "#tour-dashboard-claims",
+      title: "Claims Processing Engine",
       content: (
         <p>
-          Your immutable ledger. Archive all examination records and instantly synthesize evidence documentation for regulatory audits.
+          Seamlessly ingest valuation claims via Excel upload or direct WhatsApp public links. Let the engine automatically calculate TA, DA, and total remuneration.
         </p>
       ),
       placement: "right-start",
-      data: { icon: <Database className="h-4 w-4 text-white" /> }
+      data: { icon: <Database className="h-5 w-5 text-emerald-300" /> }
+    },
+    {
+      target: "#tour-dashboard-reports",
+      title: "NAAC/NBA Accreditation",
+      content: (
+        <p>
+          Generate instantly certified, system-verified compliance evidence packs for regulatory audits and inspections.
+        </p>
+      ),
+      placement: "right-start",
+      data: { icon: <ShieldCheck className="h-5 w-5 text-amber-300" /> }
     },
     {
       target: "#tour-dashboard-settings",
       title: "System Configuration",
       content: (
         <p>
-          Manage institutional parameters, update branding assets, and configure remuneration baseline metrics.
+          Manage institutional parameters, update your college branding assets, and configure system-wide remuneration baseline metrics.
         </p>
       ),
       placement: "right-end",
-      data: { icon: <Settings2 className="h-4 w-4 text-white" /> }
+      data: { icon: <Settings2 className="h-5 w-5 text-rose-300" /> }
     },
     {
       target: ".tour-header-controls",
-      title: "Initialization Complete",
+      title: "Command Center Initialized",
       content: (
         <p>
-          The interface is fully operational. Access this guide sequence at any time via the Tour Guide module in the primary header.
+          The HallSync platform is fully operational. You can trigger this interactive guide at any time from the primary header.
         </p>
       ),
       placement: "bottom-end",
-      data: { icon: <Hexagon className="h-4 w-4 text-white" /> }
+      data: { icon: <Hexagon className="h-5 w-5 text-cyan-300" /> }
     }
   ];
 

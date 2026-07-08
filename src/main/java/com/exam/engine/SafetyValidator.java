@@ -25,10 +25,8 @@ public class SafetyValidator {
             risk += 100;
         }
 
-        // Vertical Check (Above)
-        if (r > 1 && grid[r - 1][c] != null && subject.equals(grid[r - 1][c].subjectCode())) {
-            risk += 100;
-        }
+        // Vertical Check (Above) - REMOVED
+        // In column-based examination seating, students of the same subject sitting one behind another is expected.
 
         // Diagonal Check (Top-Left)
         if (r > 1 && c > 0 && grid[r - 1][c - 1] != null && subject.equals(grid[r - 1][c - 1].subjectCode())) {

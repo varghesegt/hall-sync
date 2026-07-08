@@ -37,7 +37,7 @@ const Contact = () => {
               Contact <span className="text-indigo-600">Sales</span>
             </h1>
             <p className="text-xl text-slate-600 font-medium max-w-2xl mx-auto">
-              Request a demo, discuss enterprise pricing, or inquire about ERP integrations for your university.
+              Request a demo, discuss custom pricing, or inquire about ERP integrations for your university.
             </p>
           </div>
 
@@ -64,7 +64,7 @@ const Contact = () => {
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-900">Email Directory</h4>
-                  <p className="text-slate-600 font-medium mt-1">sales@hallsync.in<br/>support@hallsync.in</p>
+                  <p className="text-slate-600 font-medium mt-1">sales@hallsync.in<br/>support@hallsync.in<br/>varghese.gt.dev@gmail.com</p>
                 </div>
               </div>
 
@@ -74,7 +74,7 @@ const Contact = () => {
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-900">Operating Hours</h4>
-                  <p className="text-slate-600 font-medium mt-1">Monday - Friday<br/>9:00 AM - 6:00 PM IST</p>
+                  <p className="text-slate-600 font-medium mt-1">Monday - Friday<br/>Location: Trichy</p>
                 </div>
               </div>
             </div>

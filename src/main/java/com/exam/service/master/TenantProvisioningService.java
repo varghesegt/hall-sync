@@ -51,9 +51,14 @@ public class TenantProvisioningService {
 
         String dbName = "tenant_" + request.getTenantId().toLowerCase().replaceAll("[^a-z0-9]", "");
 
-        // Create Database in PostgreSQL
+        // Strict validation: only allow safe database names
+        if (!dbName.matches("^[a-z0-9_]{3,63}$")) {
+            throw new IllegalArgumentException("Invalid tenant ID: produces unsafe database name.");
+        }
+
+        // Create Database in PostgreSQL (quote identifier to prevent injection)
         try {
-            jdbcTemplate.execute("CREATE DATABASE " + dbName);
+            jdbcTemplate.execute("CREATE DATABASE \"" + dbName + "\"");
         } catch (Exception e) {
             // It might already exist, log or handle
         }

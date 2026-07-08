@@ -64,9 +64,8 @@ public class AuthService {
                 Optional<Tenant> tenantOpt = tenantRepository.findByTenantId(inputUsername);
                 if (tenantOpt.isPresent()) {
                     Tenant tenant = tenantOpt.get();
-                    Optional<AppUser> adminOpt = userRepository.findAll().stream()
-                            .filter(u -> u.getTenant() != null && u.getTenant().getId().equals(tenant.getId()))
-                            .findFirst();
+                    // Direct DB query instead of loading ALL users into memory
+                    Optional<AppUser> adminOpt = userRepository.findFirstByTenant_Id(tenant.getId());
                     if (adminOpt.isPresent()) {
                         resolvedEmail = adminOpt.get().getEmail();
                     }

@@ -20,8 +20,11 @@ public class InvigilatorDutyController {
     }
 
     @PostMapping("/allocate/{batchId}")
-    public ResponseEntity<Map<String, Object>> allocate(@PathVariable UUID batchId) {
-        Map<String, Object> result = dutyService.allocateInvigilators(batchId);
+    public ResponseEntity<Map<String, Object>> allocate(
+            @PathVariable UUID batchId,
+            @RequestBody(required = false) Map<String, List<UUID>> requestBody) {
+        List<UUID> facultyIds = requestBody != null ? requestBody.get("facultyIds") : null;
+        Map<String, Object> result = dutyService.allocateInvigilators(batchId, facultyIds);
         return ResponseEntity.ok(result);
     }
 
@@ -31,6 +34,12 @@ public class InvigilatorDutyController {
         List<InvigilatorDuty> duties = dutyService.getDutiesByBatch(batchId);
         List<Map<String, Object>> result = duties.stream().map(this::toDto).toList();
         return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/batch/{batchId}")
+    public ResponseEntity<Void> clearAllocation(@PathVariable UUID batchId) {
+        dutyService.clearDutiesByBatch(batchId);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{dutyId}/attendance")

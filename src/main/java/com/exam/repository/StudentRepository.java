@@ -11,4 +11,5 @@ import java.util.UUID;
 public interface StudentRepository extends JpaRepository<Student, UUID> {
     List<Student> findByExamSessionId(UUID examSessionId);
     boolean existsByRegisterNumberAndExamSessionId(String registerNumber, UUID examSessionId);
+    List<Student> findByExamSessionIdAndRegisterNumberIn(UUID examSessionId, List<String> registerNumbers);
 }

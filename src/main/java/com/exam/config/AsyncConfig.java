@@ -48,16 +48,24 @@ public class AsyncConfig {
     }
 
     /**
-     * Combines MDC propagation with job lifecycle metrics.
+     * Combines MDC propagation, TenantContext propagation, and job lifecycle metrics.
+     * CRITICAL: Without TenantContext propagation, async allocation jobs would
+     * fall back to the MASTER database and write student data into the wrong DB.
      */
     private TaskDecorator metricsAndMdcDecorator(MeterRegistry meterRegistry) {
         return runnable -> {
+            // ── Capture parent thread context ──
             Map<String, String> contextMap = MDC.getCopyOfContextMap();
+            String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
             meterRegistry.counter("allocation.jobs.submitted").increment();
 
             return () -> {
+                // ── Restore context in child thread ──
                 if (contextMap != null) {
                     MDC.setContextMap(contextMap);
+                }
+                if (tenantId != null) {
+                    com.exam.config.tenant.TenantContext.setCurrentTenant(tenantId);
                 }
                 meterRegistry.counter("allocation.jobs.running").increment();
                 try {
@@ -67,6 +75,7 @@ public class AsyncConfig {
                     meterRegistry.counter("allocation.jobs.failed").increment();
                     throw e;
                 } finally {
+                    com.exam.config.tenant.TenantContext.clear();
                     MDC.clear();
                 }
             };

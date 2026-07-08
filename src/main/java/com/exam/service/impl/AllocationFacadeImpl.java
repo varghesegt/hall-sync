@@ -13,8 +13,10 @@ import com.exam.mapper.EntityMapper;
 import com.exam.repository.AllocationBatchRepository;
 import com.exam.repository.ExamSessionRepository;
 import com.exam.repository.StudentRepository;
+import com.exam.repository.master.UserRepository;
 import com.exam.service.AllocationFacade;
 import com.exam.service.AllocationService;
+import com.exam.service.SseNotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -38,17 +40,20 @@ public class AllocationFacadeImpl implements AllocationFacade {
     private final ExamSessionRepository sessionRepo;
     private final StudentRepository studentRepo;
     private final Executor allocationExecutor;
+    private final SseNotificationService sseNotificationService;
 
     public AllocationFacadeImpl(AllocationService orchestrationLayer,
                                 AllocationBatchRepository batchRepo,
                                 ExamSessionRepository sessionRepo,
                                 StudentRepository studentRepo,
-                                @Qualifier("allocationExecutor") Executor allocationExecutor) {
+                                @Qualifier("allocationExecutor") Executor allocationExecutor,
+                                SseNotificationService sseNotificationService) {
         this.orchestrationLayer = orchestrationLayer;
         this.batchRepo = batchRepo;
         this.sessionRepo = sessionRepo;
         this.studentRepo = studentRepo;
         this.allocationExecutor = allocationExecutor;
+        this.sseNotificationService = sseNotificationService;
     }
 
     @Override
@@ -87,12 +92,19 @@ public class AllocationFacadeImpl implements AllocationFacade {
                 try {
                     if (tenantId != null) {
                         com.exam.config.tenant.TenantContext.setCurrentTenant(tenantId);
+                        sseNotificationService.broadcastToTenant(tenantId, "ALLOCATION_PROGRESS", "{\"status\": \"STARTING\", \"progress\": 0}");
                     }
                     orchestrationLayer.runAllocation(examSessionId, request.requestedBy(), allocationRequestId, selectedRooms);
+                    if (tenantId != null) {
+                        sseNotificationService.broadcastToTenant(tenantId, "ALLOCATION_PROGRESS", "{\"status\": \"COMPLETED\", \"progress\": 100}");
+                    }
                 } catch (Exception e) {
                     // Already logged inside runAllocation — this prevents unhandled exception noise
                     logger.error("[{}] Async allocation completed with error for session {}: {}",
                             allocationRequestId, examSessionId, e.getMessage());
+                    if (tenantId != null) {
+                        sseNotificationService.broadcastToTenant(tenantId, "ALLOCATION_PROGRESS", "{\"status\": \"FAILED\", \"error\": \"Allocation failed. Please check logs.\"}");
+                    }
                 } finally {
                     com.exam.config.tenant.TenantContext.clear();
                 }

@@ -93,12 +93,18 @@ public class PatternRowExtractor {
             List<String> nameTokens = new ArrayList<>();
             for (int i = 0; i < tokens.size(); i++) {
                 if (i != regIdx) {
-                    if (!isExplicitDept(tokens.get(i))) {
-                        nameTokens.add(tokens.get(i));
+                    String token = tokens.get(i);
+                    if (!isExplicitDept(token)) {
+                        if (nameTokens.isEmpty() && token.matches("^\\d+[.)]?$")) {
+                            continue; // Skip leading serial numbers with or without punctuation
+                        }
+                        nameTokens.add(token);
                     }
                 }
             }
             String name = String.join(" ", nameTokens).trim();
+            // Fallback: strictly remove any remaining leading numbers/punctuation
+            name = name.replaceFirst("^\\d+[.)]?\\s*", "");
             if (name.isEmpty()) name = reg;
             
             String dept = resolveDepartment(reg);

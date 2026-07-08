@@ -19,6 +19,9 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @org.springframework.beans.factory.annotation.Value("${app.cookie.secure:true}")
+    private boolean cookieSecure;
+
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
@@ -34,12 +37,13 @@ public class AuthController {
         
         jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("coe_auth", authResponse.getToken());
         cookie.setHttpOnly(true);
-        cookie.setSecure(false); // Set to true in production with HTTPS
+        cookie.setSecure(cookieSecure);
         cookie.setPath("/");
         cookie.setMaxAge(24 * 60 * 60); // 24 hours
-        // Cannot easily set SameSite=Strict on old javax/jakarta Cookie API without adding header directly
-        // So we add the header directly to ensure SameSite=Lax
-        response.addHeader("Set-Cookie", "coe_auth=" + authResponse.getToken() + "; Max-Age=86400; Path=/; HttpOnly; SameSite=Lax");
+        // Set SameSite=Lax via header for cross-site protection
+        String sameSite = cookieSecure ? "Strict" : "Lax";
+        String secureFlag = cookieSecure ? " Secure;" : "";
+        response.addHeader("Set-Cookie", "coe_auth=" + authResponse.getToken() + "; Max-Age=86400; Path=/; HttpOnly;" + secureFlag + " SameSite=" + sameSite);
         
         return ResponseEntity.ok(authResponse);
     }

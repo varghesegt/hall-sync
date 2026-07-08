@@ -159,7 +159,11 @@ public class IntegrityAuditService {
                     // VIOLATION: Same subject code AND Same department in horizontally or diagonally adjacent seats.
                     // This reflects the industry-standard "Class-wise Separation".
                     // If subject matches but depts are different, it is considered a valid separation for common papers.
-                    boolean sameSubject = current.subjectCode() != null && current.subjectCode().equals(neighbor.subjectCode());
+                    String subjA = current.subjectCode();
+                    String subjB = neighbor.subjectCode();
+                    boolean validSubject = subjA != null && subjB != null && !subjA.trim().isEmpty() && !subjA.trim().equalsIgnoreCase("N/A") && !subjA.trim().equals("-");
+                    boolean sameSubject = validSubject && subjA.trim().equalsIgnoreCase(subjB.trim());
+                    
                     boolean sameDept = current.department() != null && current.department().equals(neighbor.department());
                     boolean isSubjectDominant = sameSubject && dominantSubjects.contains(current.subjectCode());
                     
@@ -188,10 +192,10 @@ public class IntegrityAuditService {
         int totalColumnsUsed = 0;
         Map<String, List<String>> columnDepts = new LinkedHashMap<>();
 
-        for (int col = 0; col < 5; col++) {
+        for (int col = 0; col < 8; col++) {
             Set<String> depts = new LinkedHashSet<>();
             boolean hasStudents = false;
-            for (int row = 1; row <= 5; row++) {
+            for (int row = 1; row <= 7; row++) {
                 if (grid[row][col] != null) {
                     hasStudents = true;
                     depts.add(grid[row][col].department());
@@ -247,11 +251,11 @@ public class IntegrityAuditService {
 
             boolean isPureHall = subjectCounts.size() <= 1;
 
-            // 2. Build grid for adjacency check
-            com.exam.entity.Allocation[][] grid = new com.exam.entity.Allocation[6][5];
+            // 2. Build grid for adjacency check (up to 7 rows, 6 columns)
+            com.exam.entity.Allocation[][] grid = new com.exam.entity.Allocation[8][6];
             for (com.exam.entity.Allocation a : hallSeats) {
                 Integer colIdx = COL_INDEX.get(a.getSeatCol());
-                if (colIdx != null && a.getSeatRow() >= 1 && a.getSeatRow() <= 5) {
+                if (colIdx != null && a.getSeatRow() >= 1 && a.getSeatRow() <= 7) {
                     grid[a.getSeatRow()][colIdx] = a;
                 }
             }
@@ -259,24 +263,27 @@ public class IntegrityAuditService {
             // 3. Reset all to 0 first, then flag violations
             hallSeats.forEach(a -> a.setRiskScore(0));
 
-            for (int row = 1; row <= 5; row++) {
-                for (int col = 0; col < 5; col++) {
+            for (int row = 1; row <= 7; row++) {
+                for (int col = 0; col < 6; col++) {
                     com.exam.entity.Allocation current = grid[row][col];
                     if (current == null) continue;
 
                     for (int[] offset : ADJACENCY_OFFSETS) {
                         int adjRow = row + offset[0];
                         int adjCol = col + offset[1];
-                        if (adjRow < 1 || adjRow > 5 || adjCol < 0 || adjCol >= 5) continue;
+                        if (adjRow < 1 || adjRow > 7 || adjCol < 0 || adjCol >= 8) continue;
 
                         com.exam.entity.Allocation neighbor = grid[adjRow][adjCol];
                         if (neighbor == null) continue;
 
-                        boolean sameSubject = current.getStudent().getSubjectCode() != null && 
-                                           current.getStudent().getSubjectCode().equals(neighbor.getStudent().getSubjectCode());
+                        String subjA = current.getStudent().getSubjectCode();
+                        String subjB = neighbor.getStudent().getSubjectCode();
+                        boolean validSubject = subjA != null && subjB != null && !subjA.trim().isEmpty() && !subjA.trim().equalsIgnoreCase("N/A") && !subjA.trim().equals("-");
+                        boolean sameSubject = validSubject && subjA.trim().equalsIgnoreCase(subjB.trim());
+                        
                         boolean sameDept = current.getStudent().getDepartment() != null && 
                                          current.getStudent().getDepartment().equals(neighbor.getStudent().getDepartment());
-                        boolean isSubjectDominant = sameSubject && dominantSubjects.contains(current.getStudent().getSubjectCode());
+                        boolean isSubjectDominant = sameSubject && dominantSubjects.contains(subjA);
 
                         if (sameSubject && sameDept && !isPureHall && !isSubjectDominant) {
                             current.setRiskScore(1);

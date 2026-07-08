@@ -60,12 +60,20 @@ public class InternalAllocationFacade {
 
         logger.info("[{}] Triggering async INTERNAL allocation for session: {}", allocationRequestId, examSessionId);
 
+        // --- Capture tenant context for async thread ---
+        String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
+
         try {
             CompletableFuture.runAsync(() -> {
                 try {
+                    if (tenantId != null) {
+                        com.exam.config.tenant.TenantContext.setCurrentTenant(tenantId);
+                    }
                     orchestrationLayer.runAllocation(examSessionId, request.requestedBy(), allocationRequestId, selectedRooms);
                 } catch (Exception e) {
                     logger.error("[{}] Async internal allocation error: {}", allocationRequestId, e.getMessage());
+                } finally {
+                    com.exam.config.tenant.TenantContext.clear();
                 }
             }, allocationExecutor).exceptionally(ex -> {
                 logger.error("[{}] Internal allocation infrastructure error", allocationRequestId, ex);

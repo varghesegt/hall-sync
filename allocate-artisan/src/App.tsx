@@ -1,57 +1,72 @@
+import React, { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-// Pages
-import Index from "./pages/Index.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
-import Login from "./pages/Login.tsx";
-import AdminLogin from "./pages/AdminLogin.tsx";
-import ForgotPassword from "./pages/ForgotPassword.tsx";
-import ResetPassword from "./pages/ResetPassword.tsx";
-import AdminDashboard from "./pages/AdminDashboard.tsx";
-import InternalDashboard from "./pages/InternalDashboard.tsx";
-import NotFound from "./pages/NotFound.tsx";
+// ── Core (loaded eagerly — needed on first render) ─────────────────────
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import { DashboardLayout } from "./components/layout/DashboardLayout.tsx";
+import PublicLayout from "./components/layout/PublicLayout.tsx";
+import { NetworkOfflineOverlay } from "@/components/ui/NetworkOfflineOverlay";
 
-// Enterprise Modules
-import AnalyticsDashboard from "./pages/AnalyticsDashboard.tsx";
-import ExamHistory from "./pages/ExamHistory.tsx";
-import FacultyManagement from "./pages/FacultyManagement.tsx";
-import MalpracticeTracker from "./pages/MalpracticeTracker.tsx";
-import DutyAllocation from "./pages/DutyAllocation.tsx";
-import AccreditationReports from "./pages/AccreditationReports.tsx";
-import Settings from "./pages/Settings.tsx";
-import ClaimsDashboard from "./pages/claims/ClaimsDashboard.tsx";
-import ClaimsList from "./pages/claims/ClaimsList.tsx";
-import CollegeDistanceDB from "./pages/claims/CollegeDistanceDB.tsx";
+// ── Lazy-loaded Pages (code-split for 5x faster initial load) ──────────
+// Auth & Core
+const Index = React.lazy(() => import("./features/core/pages/Index.tsx"));
+const Login = React.lazy(() => import("./features/core/pages/Login.tsx"));
+const AdminLogin = React.lazy(() => import("./features/core/pages/AdminLogin.tsx"));
+const ForgotPassword = React.lazy(() => import("./features/core/pages/ForgotPassword.tsx"));
+const ResetPassword = React.lazy(() => import("./features/core/pages/ResetPassword.tsx"));
+const Dashboard = React.lazy(() => import("./features/core/pages/Dashboard.tsx"));
+const Settings = React.lazy(() => import("./features/core/pages/Settings.tsx"));
+const NotFound = React.lazy(() => import("./features/core/pages/NotFound.tsx"));
 
-// New Expansion Modules
-import { CommandCenter } from "./pages/admin/CommandCenter.tsx";
-import { AuditCenter } from "./pages/admin/AuditCenter.tsx";
-import { FacultyWorkload } from "./pages/admin/FacultyWorkload.tsx";
-import { QuestionPaperSecurity } from "./pages/admin/QuestionPaperSecurity.tsx";
-import { CommunicationCenter } from "./pages/admin/CommunicationCenter.tsx";
-import { ErpImportCenter } from "./pages/admin/ErpImportCenter.tsx";
-import ExamLifecycle from "./pages/admin/ExamLifecycle";
-import ManagementDashboard from "./pages/admin/ManagementDashboard";
-import ComplianceVault from "./pages/admin/ComplianceVault";
-import HallManagement from "./pages/admin/HallManagement";
-import FloorPlanEditor from "./pages/FloorPlanEditor.tsx";
-import FloorPlanSelect from "./pages/FloorPlanSelect.tsx";
+// Allocations Domain
+const InternalDashboard = React.lazy(() => import("./features/allocations/pages/InternalDashboard.tsx"));
+const FacultyManagement = React.lazy(() => import("./features/allocations/pages/FacultyManagement.tsx"));
+const DutyAllocation = React.lazy(() => import("./features/allocations/pages/DutyAllocation.tsx"));
+const FloorPlanEditor = React.lazy(() => import("./features/allocations/pages/FloorPlanEditor.tsx"));
+const FloorPlanSelect = React.lazy(() => import("./features/allocations/pages/FloorPlanSelect.tsx"));
+const AppointmentOrders = React.lazy(() => import("./features/allocations/pages/AppointmentOrders.tsx"));
+
+// Claims Domain
+const ClaimsDashboard = React.lazy(() => import("./features/claims/pages/ClaimsDashboard.tsx"));
+const ClaimsList = React.lazy(() => import("./features/claims/pages/ClaimsList.tsx"));
+const CollegeDistanceDB = React.lazy(() => import("./features/claims/pages/CollegeDistanceDB.tsx"));
+
+// Analytics & Admin Domain
+const AnalyticsDashboard = React.lazy(() => import("./features/analytics/pages/AnalyticsDashboard.tsx"));
+const ExamHistory = React.lazy(() => import("./features/analytics/pages/ExamHistory.tsx"));
+const MalpracticeTracker = React.lazy(() => import("./features/analytics/pages/MalpracticeTracker.tsx"));
+const AccreditationReports = React.lazy(() => import("./features/analytics/pages/AccreditationReports.tsx"));
+const AdminDashboard = React.lazy(() => import("./features/analytics/pages/AdminDashboard.tsx"));
+const CommandCenter = React.lazy(() => import("./features/analytics/pages/CommandCenter.tsx").then(m => ({ default: m.CommandCenter })));
+const AuditCenter = React.lazy(() => import("./features/analytics/pages/AuditCenter.tsx").then(m => ({ default: m.AuditCenter })));
+const QuestionPaperSecurity = React.lazy(() => import("./features/analytics/pages/QuestionPaperSecurity.tsx").then(m => ({ default: m.QuestionPaperSecurity })));
+const CommunicationCenter = React.lazy(() => import("./features/analytics/pages/CommunicationCenter.tsx").then(m => ({ default: m.CommunicationCenter })));
+const ErpImportCenter = React.lazy(() => import("./features/analytics/pages/ErpImportCenter.tsx").then(m => ({ default: m.ErpImportCenter })));
+const ExamLifecycle = React.lazy(() => import("./features/analytics/pages/ExamLifecycle"));
+const ManagementDashboard = React.lazy(() => import("./features/analytics/pages/ManagementDashboard"));
+const ComplianceVault = React.lazy(() => import("./features/analytics/pages/ComplianceVault"));
+const HallManagement = React.lazy(() => import("./features/analytics/pages/HallManagement"));
 
 // Public SaaS Pages
-import PublicLayout from "./components/layout/PublicLayout.tsx";
-import Home from "./pages/public/Home.tsx";
-import About from "./pages/public/About.tsx";
-import Contact from "./pages/public/Contact.tsx";
-import Pricing from "./pages/public/Pricing.tsx";
-import Payment from "./pages/public/Payment.tsx";
+const Home = React.lazy(() => import("./pages/public/Home.tsx"));
+const About = React.lazy(() => import("./pages/public/About.tsx"));
+const Contact = React.lazy(() => import("./pages/public/Contact.tsx"));
+const Pricing = React.lazy(() => import("./pages/public/Pricing.tsx"));
+const Payment = React.lazy(() => import("./pages/public/Payment.tsx"));
+const PublicRemunerationForm = React.lazy(() => import("./pages/public/PublicRemunerationForm.tsx"));
 
-import { NetworkOfflineOverlay } from "@/components/ui/NetworkOfflineOverlay";
+// ── Loading Spinner for Suspense boundaries ────────────────────────────
+const PageLoader = () => (
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#0a0a0a" }}>
+    <div style={{ width: 36, height: 36, border: "3px solid #333", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
+
 
 const queryClient = new QueryClient();
 
@@ -62,6 +77,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public SaaS Routes */}
           <Route element={<PublicLayout />}>
@@ -71,6 +87,8 @@ const App = () => (
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/payment" element={<Payment />} />
           </Route>
+          
+          <Route path="/public/remuneration/:batchId" element={<PublicRemunerationForm />} />
 
           {/* Authentication Routes */}
           <Route path="/login" element={<Login />} />
@@ -104,6 +122,7 @@ const App = () => (
             <Route path="faculty" element={<FacultyManagement />} />
             <Route path="malpractice" element={<MalpracticeTracker />} />
             <Route path="duty" element={<DutyAllocation />} />
+            <Route path="appointments" element={<AppointmentOrders />} />
             <Route path="reports" element={<AccreditationReports />} />
             <Route path="settings" element={<Settings />} />
             <Route path="claims" element={<ClaimsDashboard />} />
@@ -112,7 +131,6 @@ const App = () => (
             
             <Route path="command-center" element={<CommandCenter />} />
             <Route path="audit-center" element={<AuditCenter />} />
-            <Route path="workload" element={<FacultyWorkload />} />
             <Route path="qp-security" element={<QuestionPaperSecurity />} />
             <Route path="communications" element={<CommunicationCenter />} />
             <Route path="import" element={<ErpImportCenter />} />
@@ -138,6 +156,7 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

@@ -43,12 +43,14 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
+                .requestMatchers("/api/v1/auth/**", "/api/v1/tenant/current", "/api/v1/public/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow preflight
                 .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/manifest.json").permitAll() // Static UI
                 .requestMatchers("/api/v1/auth/**").permitAll() // Allow public auth routes
                 .requestMatchers("/api/v1/admin/**").hasRole("SUPER_ADMIN") // Secure admin routes strictly
                 .requestMatchers("/actuator/**").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/api/**").authenticated()
+                .anyRequest().permitAll()
             )
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> {

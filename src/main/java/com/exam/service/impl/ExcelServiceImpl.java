@@ -78,16 +78,30 @@ public class ExcelServiceImpl implements ExcelService {
                 currentRow++; // Jump past the merged hall name box
                 currentRow++; // Spacer
 
-                // --- Grid Table (10 Columns) ---
+                // Determine dimensions dynamically from hallAllocations
+                int maxRow = 5;
+                int maxColIndex = 4; // default to V
+                String[] engineColNames = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII"};
+                String[] columnLabels = {"I Row", "II Row", "III Row", "IV Row", "V Row", "VI Row", "VII Row", "VIII Row"};
+
+                for (PdfAllocationView a : hallAllocations) {
+                    if (a.seatRow() > maxRow) maxRow = a.seatRow();
+                    for (int i = 0; i < engineColNames.length; i++) {
+                        if (engineColNames[i].equals(a.seatCol()) && i > maxColIndex) {
+                            maxColIndex = i;
+                        }
+                    }
+                }
+                int colCount = maxColIndex + 1;
+
+                // --- Grid Table (Dynamic Columns) ---
                 Row gridLabelRow = sheet.createRow(currentRow++);
-                createMergedCell(sheet, gridLabelRow, 0, 9, "REGISTER NO. OF THE CANDIDATES", boldStyle);
+                createMergedCell(sheet, gridLabelRow, 0, (colCount * 2) - 1, "REGISTER NO. OF THE CANDIDATES", boldStyle);
 
                 // Column Headers
                 Row gridHeaderRow = sheet.createRow(currentRow++);
-                String[] columnLabels = { "I Row", "II Row", "III Row", "IV Row", "V Row" };
-                String[] engineColNames = { "I", "II", "III", "IV", "V" };
 
-                for (int c = 0; c < 5; c++) {
+                for (int c = 0; c < colCount; c++) {
                     int colBase = c * 2;
                     Cell snoHeader = gridHeaderRow.createCell(colBase);
                     snoHeader.setCellValue("SNO");
@@ -110,11 +124,11 @@ public class ExcelServiceImpl implements ExcelService {
                         .collect(Collectors.groupingBy(PdfAllocationView::seatCol,
                                 Collectors.toMap(PdfAllocationView::seatRow, a -> a)));
 
-                for (int r = 1; r <= 5; r++) {
+                for (int r = 1; r <= maxRow; r++) {
                     Row dataRow = sheet.createRow(currentRow++);
-                    for (int c = 0; c < 5; c++) {
+                    for (int c = 0; c < colCount; c++) {
                         String colName = engineColNames[c];
-                        int sno = (c * 5) + r;
+                        int sno = (c * maxRow) + r;
                         int colBase = c * 2;
 
                         Cell snoCell = dataRow.createCell(colBase);
@@ -158,7 +172,7 @@ public class ExcelServiceImpl implements ExcelService {
             }
 
             // Auto-size columns for readability
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < (8 * 2); i++) { // max possible is 8 cols * 2
                 sheet.autoSizeColumn(i);
             }
 

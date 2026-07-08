@@ -39,7 +39,7 @@ public class InvigilatorDutyService {
     }
 
     @Transactional
-    public Map<String, Object> allocateInvigilators(UUID batchId) {
+    public Map<String, Object> allocateInvigilators(UUID batchId, List<UUID> selectedFacultyIds) {
         AllocationBatch batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new IllegalArgumentException("Batch not found: " + batchId));
 
@@ -48,9 +48,17 @@ public class InvigilatorDutyService {
         LocalDate examDate = session.getExamDate();
 
         // Get all active and available faculty
-        List<Faculty> availableFaculty = facultyRepository.findByIsActiveTrueAndIsAvailableTrueOrderByDepartmentAscNameAsc();
+        List<Faculty> availableFaculty;
+        if (selectedFacultyIds != null && !selectedFacultyIds.isEmpty()) {
+            availableFaculty = facultyRepository.findAllById(selectedFacultyIds).stream()
+                    .filter(f -> f.getIsActive() && f.getIsAvailable())
+                    .collect(Collectors.toList());
+        } else {
+            availableFaculty = facultyRepository.findByIsActiveTrueAndIsAvailableTrueOrderByDepartmentAscNameAsc();
+        }
+        
         if (availableFaculty.isEmpty()) {
-            throw new IllegalStateException("No active faculty found. Please add faculty before allocating duties.");
+            throw new IllegalStateException("No active faculty found. Please select faculty before allocating duties.");
         }
 
         // Build hall -> departments map from allocations
@@ -106,6 +114,11 @@ public class InvigilatorDutyService {
 
     public List<InvigilatorDuty> getDutiesByBatch(UUID batchId) {
         return dutyRepository.findByBatchIdOrderByHallIdAsc(batchId);
+    }
+
+    @Transactional
+    public void clearDutiesByBatch(UUID batchId) {
+        dutyRepository.deleteByBatchId(batchId);
     }
 
     @Transactional

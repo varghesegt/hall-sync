@@ -60,14 +60,14 @@ const Pricing = () => {
       highlighted: true,
     },
     {
-      name: "Enterprise",
+      name: "Custom",
       description: "For large universities requiring complete control.",
       monthlyPrice: 42999,
       annualPrice: 34999,
       features: [
         "Unlimited students",
         "Multi-campus Support",
-        "Enterprise-grade Security",
+        "Advanced Security",
         "SSO Integration (SAML/OIDC)",
         "API Access & Webhooks",
         "Dedicated Account Manager",

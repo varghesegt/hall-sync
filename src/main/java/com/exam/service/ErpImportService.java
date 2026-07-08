@@ -15,7 +15,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -46,6 +50,9 @@ public class ErpImportService {
             int lastRow = sheet.getLastRowNum();
             result.setTotalRows(lastRow); // excluding header
 
+            List<Student> studentsToSave = new ArrayList<>();
+            List<String> registerNumbers = new ArrayList<>();
+
             for (int i = 1; i <= lastRow; i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
@@ -69,18 +76,35 @@ public class ErpImportService {
                         continue;
                     }
 
-                    if (studentRepository.existsByRegisterNumberAndExamSessionId(regNo, sessionId)) {
-                        result.incrementSkipped();
-                        continue;
-                    }
-
                     Student student = new Student(UUID.randomUUID(), session, regNo, name,
                             department, null, subjectName, subjectCode, semester, null);
-                    studentRepository.save(student);
-                    result.incrementSuccess();
+                    studentsToSave.add(student);
+                    registerNumbers.add(regNo);
                 } catch (Exception e) {
                     result.addError("Row " + (i + 1) + ": " + e.getMessage());
                     result.incrementFailed();
+                }
+            }
+
+            // Bulk deduplication
+            if (!registerNumbers.isEmpty()) {
+                Set<String> existingRegNos = studentRepository.findByExamSessionIdAndRegisterNumberIn(sessionId, registerNumbers)
+                        .stream().map(Student::getRegisterNumber).collect(Collectors.toSet());
+
+                List<Student> validStudents = new ArrayList<>();
+                for (Student s : studentsToSave) {
+                    if (existingRegNos.contains(s.getRegisterNumber())) {
+                        result.incrementSkipped();
+                    } else {
+                        validStudents.add(s);
+                        // Prevent duplicates within the same file from being inserted twice
+                        existingRegNos.add(s.getRegisterNumber());
+                        result.incrementSuccess();
+                    }
+                }
+                
+                if (!validStudents.isEmpty()) {
+                    studentRepository.saveAll(validStudents);
                 }
             }
         } catch (Exception e) {
@@ -115,6 +139,9 @@ public class ErpImportService {
             String line = reader.readLine(); // skip header
             int rowNum = 1;
 
+            List<Student> studentsToSave = new ArrayList<>();
+            List<String> registerNumbers = new ArrayList<>();
+
             while ((line = reader.readLine()) != null) {
                 rowNum++;
                 if (line.isBlank()) continue;
@@ -141,18 +168,34 @@ public class ErpImportService {
                         continue;
                     }
 
-                    if (studentRepository.existsByRegisterNumberAndExamSessionId(regNo, sessionId)) {
-                        result.incrementSkipped();
-                        continue;
-                    }
-
                     Student student = new Student(UUID.randomUUID(), session, regNo, name,
                             department, null, subjectName, subjectCode, semester, null);
-                    studentRepository.save(student);
-                    result.incrementSuccess();
+                    studentsToSave.add(student);
+                    registerNumbers.add(regNo);
                 } catch (Exception e) {
                     result.addError("Row " + rowNum + ": " + e.getMessage());
                     result.incrementFailed();
+                }
+            }
+            
+            // Bulk deduplication
+            if (!registerNumbers.isEmpty()) {
+                Set<String> existingRegNos = studentRepository.findByExamSessionIdAndRegisterNumberIn(sessionId, registerNumbers)
+                        .stream().map(Student::getRegisterNumber).collect(Collectors.toSet());
+
+                List<Student> validStudents = new ArrayList<>();
+                for (Student s : studentsToSave) {
+                    if (existingRegNos.contains(s.getRegisterNumber())) {
+                        result.incrementSkipped();
+                    } else {
+                        validStudents.add(s);
+                        existingRegNos.add(s.getRegisterNumber());
+                        result.incrementSuccess();
+                    }
+                }
+                
+                if (!validStudents.isEmpty()) {
+                    studentRepository.saveAll(validStudents);
                 }
             }
         } catch (Exception e) {

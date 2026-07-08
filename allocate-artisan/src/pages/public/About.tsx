@@ -39,6 +39,17 @@ const About = () => {
                 </p>
               </div>
 
+              <h2 className="text-2xl font-black text-slate-900 mt-12 mb-6 tracking-tight">Meet the Founder</h2>
+              <div className="flex flex-col gap-4 bg-slate-50 p-8 rounded-2xl border border-slate-100 shadow-sm mt-6 not-prose">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Varghese G T</h3>
+                  <p className="text-indigo-600 font-bold text-sm mb-4 uppercase tracking-widest">Lead Architect & Founder</p>
+                  <p className="text-slate-600 font-medium leading-relaxed">
+                    Varghese G T is the lead architect and founder of HallSync. Combining a deep understanding of institutional administrative challenges with advanced software engineering expertise, he developed HallSync to eliminate the manual, error-prone workflows that plague university examination departments. Based in Trichy, Varghese continues to drive the product's innovation to serve autonomous institutions across India.
+                  </p>
+                </div>
+              </div>
+
               <h2 className="text-2xl font-black text-slate-900 mt-12 mb-6 tracking-tight">Core Priorities</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 not-prose mt-8">
                 {[

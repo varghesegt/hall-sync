@@ -19,8 +19,10 @@ public class NotificationController {
     }
 
     @PostMapping("/duty-emails/{batchId}")
-    public ResponseEntity<Map<String, Object>> sendDutyEmails(@PathVariable UUID batchId) {
-        return ResponseEntity.ok(notificationService.sendDutyAllocationEmails(batchId));
+    public ResponseEntity<Map<String, Object>> sendDutyEmails(
+            @PathVariable UUID batchId,
+            @RequestParam(defaultValue = "ALL") String targetCategory) {
+        return ResponseEntity.ok(notificationService.sendDutyAllocationEmails(batchId, targetCategory));
     }
 
     @PostMapping("/exam-broadcast/{batchId}")

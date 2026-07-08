@@ -12,7 +12,7 @@ interface PreviewPanelProps {
   onUpdate?: () => void;
 }
 
-const COL_ORDER = ["I", "II", "III", "IV", "V"];
+const ALL_COLS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 const DEPT_COLORS: Record<string, string> = {};
 const PALETTE = [
   "hsl(220, 70%, 92%)", "hsl(150, 60%, 90%)", "hsl(35, 80%, 90%)",
@@ -97,6 +97,25 @@ export function PreviewPanel({ batchId, status, onUpdate }: PreviewPanelProps) {
       g[s.seatRow][s.seatCol] = s;
     }
     return g;
+  }, [currentHall]);
+
+  // Determine dynamic columns and max row
+  const { currentCols, rowNumbers } = useMemo(() => {
+    if (!currentHall || currentHall.seats.length === 0) {
+      return { currentCols: ["I", "II", "III", "IV", "V"], rowNumbers: [1, 2, 3, 4, 5] };
+    }
+    let maxR = 0;
+    const colsSet = new Set<string>();
+    for (const s of currentHall.seats) {
+      if (s.seatRow > maxR) maxR = s.seatRow;
+      colsSet.add(s.seatCol);
+    }
+    const mR = Math.max(5, maxR);
+    const cCols = ALL_COLS.filter(c => colsSet.has(c));
+    return {
+      currentCols: cCols.length > 0 ? cCols : ["I", "II", "III", "IV", "V"],
+      rowNumbers: Array.from({ length: mR }, (_, i) => i + 1)
+    };
   }, [currentHall]);
 
   // Stats per column — always called
@@ -262,7 +281,7 @@ export function PreviewPanel({ batchId, status, onUpdate }: PreviewPanelProps) {
             >
               {editMode ? <><Check className="h-3.5 w-3.5" /> Done Editing</> : <><Pencil className="h-3.5 w-3.5" /> Edit</>}
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8" onClick={() => nav(`/dashboard/floor-plan/${batchId}`)}>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8" onClick={() => window.open(`/dashboard/floor-plan/${batchId}`, '_blank')}>
               <LayoutGrid className="h-3.5 w-3.5" /> Floor Plan
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setIsOpen(!isOpen)}>
@@ -340,7 +359,7 @@ export function PreviewPanel({ batchId, status, onUpdate }: PreviewPanelProps) {
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-900">
                       <th className="border p-1.5 w-8 text-center font-medium text-muted-foreground">S.No</th>
-                      {COL_ORDER.map(col => {
+                      {currentCols.map(col => {
                         const depts = colDepts[col];
                         const isEmpty = !depts || depts.length === 0;
                         return (
@@ -360,10 +379,10 @@ export function PreviewPanel({ batchId, status, onUpdate }: PreviewPanelProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {[1, 2, 3, 4, 5].map(row => (
+                    {rowNumbers.map(row => (
                       <tr key={row} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
                         <td className="border p-1.5 text-center font-medium text-muted-foreground">{row}</td>
-                        {COL_ORDER.map(col => {
+                        {currentCols.map(col => {
                           const seat = grid[row]?.[col];
                           const isDropZone = dropTarget === `${row}:${col}`;
                           const isDragSource = dragSource?.seatRow === row && dragSource?.seatCol === col && dragSource?.hallId === currentHall.hallId;

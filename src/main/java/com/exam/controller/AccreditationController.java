@@ -25,8 +25,16 @@ public class AccreditationController {
 
     @GetMapping("/evidence-pack/{archiveId}")
     public ResponseEntity<StreamingResponseBody> generateEvidencePack(@org.springframework.web.bind.annotation.PathVariable UUID archiveId) {
+        String currentTenant = com.exam.config.tenant.TenantContext.getCurrentTenant();
         StreamingResponseBody stream = out -> {
-            accreditationService.generateEvidencePack(archiveId, out);
+            try {
+                if (currentTenant != null) {
+                    com.exam.config.tenant.TenantContext.setCurrentTenant(currentTenant);
+                }
+                accreditationService.generateEvidencePack(archiveId, out);
+            } finally {
+                com.exam.config.tenant.TenantContext.clear();
+            }
         };
 
         return ResponseEntity.ok()

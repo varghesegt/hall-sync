@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.exam.service.impl.S3FileStorageService;
+import com.exam.service.impl.ParseResultCacheService;
 
 import java.util.Collections;
 import java.util.List;
@@ -34,10 +36,17 @@ public class InternalUploadService {
 
     private final ExcelParserPipeline excelParser;
     private final UploadedFileRepository fileRepository;
+    private final S3FileStorageService s3FileStorageService;
+    private final ParseResultCacheService cacheService;
 
-    public InternalUploadService(ExcelParserPipeline excelParser, UploadedFileRepository fileRepository) {
+    public InternalUploadService(ExcelParserPipeline excelParser, 
+                                 UploadedFileRepository fileRepository,
+                                 S3FileStorageService s3FileStorageService,
+                                 ParseResultCacheService cacheService) {
         this.excelParser = excelParser;
         this.fileRepository = fileRepository;
+        this.s3FileStorageService = s3FileStorageService;
+        this.cacheService = cacheService;
     }
 
     public UploadResponse uploadExcelFile(MultipartFile file) {
@@ -82,8 +91,8 @@ public class InternalUploadService {
         }
 
         // Cache parse result
-        fileRepository.cacheParseResult(finalFile.getId(), result, "internal-v1");
-        fileRepository.storeFileBytes(finalFile.getId(), excelBytes);
+        cacheService.cacheParseResult(finalFile.getId(), result, "internal-v1");
+        s3FileStorageService.storeFileBytes(finalFile.getId(), excelBytes, file.getContentType());
 
         // Check for FATAL errors
         if (result.status() == ParseStatus.FAILED) {
@@ -105,16 +114,16 @@ public class InternalUploadService {
     }
 
     public StudentPreviewResponse getPreview(UUID fileId) {
-        var cached = fileRepository.getCachedParseResult(fileId, "internal-v1");
+        var cached = cacheService.getCachedParseResult(fileId, "internal-v1");
 
         if (cached == null) {
             var metadata = fileRepository.findById(fileId);
             if (metadata.isPresent()) {
-                byte[] bytes = fileRepository.getFileBytes(fileId);
+                byte[] bytes = s3FileStorageService.getFileBytes(fileId);
                 if (bytes != null) {
                     try {
                         var result = excelParser.parse(bytes);
-                        fileRepository.cacheParseResult(fileId, result, "internal-v1");
+                        cacheService.cacheParseResult(fileId, result, "internal-v1");
                         cached = result;
                     } catch (Exception e) {
                         logger.error("Failed to re-parse Excel for preview: {}", fileId, e);

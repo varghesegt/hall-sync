@@ -109,19 +109,36 @@ public class PdfServiceImpl implements PdfService {
                 
                 document.add(metaTable);
 
-                // --- Grid Table (10 Columns) ---
+                // Determine dimensions dynamically from hallAllocations
+                int maxRow = 5;
+                int maxColIndex = 4; // default to V
+                String[] engineColNames = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII"};
+                String[] rowLabels = {"I Row", "II Row", "III Row", "IV Row", "V Row", "VI Row", "VII Row", "VIII Row"};
+                
+                for (PdfAllocationView a : hallAllocations) {
+                    if (a.seatRow() > maxRow) maxRow = a.seatRow();
+                    for (int i = 0; i < engineColNames.length; i++) {
+                        if (engineColNames[i].equals(a.seatCol()) && i > maxColIndex) {
+                            maxColIndex = i;
+                        }
+                    }
+                }
+                int colCount = maxColIndex + 1;
+
+                // --- Grid Table (Dynamic Columns) ---
                 document.add(new Paragraph("REGISTER NO. OF THE CANDIDATES")
                         .setFont(boldFont).setFontSize(10).setTextAlignment(TextAlignment.CENTER).setMargin(2));
 
-                float[] gridWidths = {0.45f, 2.55f, 0.45f, 2.55f, 0.45f, 2.55f, 0.45f, 2.55f, 0.45f, 2.55f};
+                float[] gridWidths = new float[colCount * 2];
+                for (int i = 0; i < colCount; i++) {
+                    gridWidths[i * 2] = 0.45f;
+                    gridWidths[i * 2 + 1] = 2.55f;
+                }
                 Table gridTable = new Table(UnitValue.createPercentArray(gridWidths)).useAllAvailableWidth();
                 gridTable.setFixedLayout();
                 
                 // Column Headers
-                String[] rows = {"I Row", "II Row", "III Row", "IV Row", "V Row"};
-                String[] engineColNames = {"I", "II", "III", "IV", "V"};
-                
-                for (int c = 0; c < 5; c++) {
+                for (int c = 0; c < colCount; c++) {
                     gridTable.addHeaderCell(new Cell().add(new Paragraph("S\nN\nO").setFont(boldFont).setFontSize(7).setTextAlignment(TextAlignment.CENTER)).setPadding(1).setVerticalAlignment(com.itextpdf.layout.properties.VerticalAlignment.MIDDLE));
                     
                     final String colName = engineColNames[c];
@@ -131,7 +148,7 @@ public class PdfServiceImpl implements PdfService {
                             .distinct()
                             .collect(Collectors.joining("/"));
                     
-                    String headerText = rows[c] + (depts.isEmpty() ? "" : "\n(" + depts + ")");
+                    String headerText = rowLabels[c] + (depts.isEmpty() ? "" : "\n(" + depts + ")");
                     gridTable.addHeaderCell(new Cell().add(new Paragraph(headerText).setFont(boldFont).setFontSize(8).setTextAlignment(TextAlignment.CENTER)).setPadding(1));
                 }
 
@@ -140,10 +157,10 @@ public class PdfServiceImpl implements PdfService {
                         .collect(Collectors.groupingBy(PdfAllocationView::seatCol,
                                  Collectors.toMap(PdfAllocationView::seatRow, a -> a)));
 
-                for (int r = 1; r <= 5; r++) {
-                    for (int c = 0; c < 5; c++) {
+                for (int r = 1; r <= maxRow; r++) {
+                    for (int c = 0; c < colCount; c++) {
                         String colName = engineColNames[c];
-                        int sno = (c * 5) + r;
+                        int sno = (c * maxRow) + r;
                         
                         // SNO Cell
                         gridTable.addCell(new Cell().add(new Paragraph(String.valueOf(sno)).setFont(boldFont).setFontSize(8).setTextAlignment(TextAlignment.CENTER)).setPadding(1));

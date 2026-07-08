@@ -137,7 +137,7 @@ public class AnalyticsController {
             result.add(entry);
         });
 
-        result.sort(Comparator.comparingDouble(m -> (Double) m.get("standardDeviation")));
+        result.sort((m1, m2) -> Long.compare((Long) m2.get("totalDuties"), (Long) m1.get("totalDuties")));
         return ResponseEntity.ok(result);
     }
 

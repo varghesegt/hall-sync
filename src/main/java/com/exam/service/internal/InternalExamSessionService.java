@@ -19,6 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.exam.service.impl.S3FileStorageService;
+import com.exam.service.impl.ParseResultCacheService;
 
 import java.util.List;
 import java.util.UUID;
@@ -38,15 +40,21 @@ public class InternalExamSessionService {
     private final StudentRepository studentRepository;
     private final UploadedFileRepository fileRepository;
     private final ExcelParserPipeline excelParser;
+    private final S3FileStorageService s3FileStorageService;
+    private final ParseResultCacheService cacheService;
 
     public InternalExamSessionService(ExamSessionRepository sessionRepository,
                                        StudentRepository studentRepository,
                                        UploadedFileRepository fileRepository,
-                                       ExcelParserPipeline excelParser) {
+                                       ExcelParserPipeline excelParser,
+                                       S3FileStorageService s3FileStorageService,
+                                       ParseResultCacheService cacheService) {
         this.sessionRepository = sessionRepository;
         this.studentRepository = studentRepository;
         this.fileRepository = fileRepository;
         this.excelParser = excelParser;
+        this.s3FileStorageService = s3FileStorageService;
+        this.cacheService = cacheService;
     }
 
     @Transactional
@@ -100,15 +108,19 @@ public class InternalExamSessionService {
     }
 
     private ParseResult resolveParseResult(UUID fileId) {
-        ParseResult cached = fileRepository.getCachedParseResult(fileId, "internal-v1");
-        if (cached != null) return cached;
+        // Try cache first
+        ParseResult cached = cacheService.getCachedParseResult(fileId, "internal-v1");
+        if (cached != null) {
+            return cached;
+        }
 
         logger.info("Cache miss for fileId={}, falling back to re-parse", fileId);
-        byte[] bytes = fileRepository.getFileBytes(fileId);
-        if (bytes == null || bytes.length == 0) {
-            throw new RuntimeException("File data is missing");
+        // Fallback: re-parse from stored bytes
+        byte[] excelBytes = s3FileStorageService.getFileBytes(fileId);
+        if (excelBytes == null || excelBytes.length == 0) {
+            throw new RuntimeException("File data is missing from cloud storage");
         }
-        return excelParser.parse(bytes);
+        return excelParser.parse(excelBytes);
     }
 
     private UUID persistSessionAndStudents(SessionCreateRequest request, List<StudentRow> students) {

@@ -14,9 +14,25 @@ export interface DutyDto {
   isPresent: boolean | null;
 }
 
+export interface FacultyDto {
+  id: string;
+  name: string;
+  employeeId: string;
+  department: string;
+  designation?: string;
+  isActive: boolean;
+  isAvailable: boolean;
+}
+
 export const dutyApi = {
-  allocate: (batchId: string) =>
-    apiClient.post(`/duties/allocate/${batchId}`),
+  allocate: (batchId: string, facultyIds?: string[]) =>
+    apiClient.post(`/duties/allocate/${batchId}`, { facultyIds }),
+
+  clearAllocation: (batchId: string) =>
+    apiClient.delete(`/duties/batch/${batchId}`),
+
+  getAllFaculty: () =>
+    apiClient.get<FacultyDto[]>("/faculty"),
 
   getByBatch: (batchId: string) =>
     apiClient.get<DutyDto[]>(`/duties/batch/${batchId}`),

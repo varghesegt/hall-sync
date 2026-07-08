@@ -21,6 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.exam.service.impl.S3FileStorageService;
+import com.exam.service.impl.ParseResultCacheService;
 
 import java.util.List;
 import java.util.UUID;
@@ -45,17 +47,23 @@ public class ExamSessionFacadeImpl implements ExamSessionService {
     private final UploadedFileRepository fileRepository;
     private final PdfParserPipeline parserPipeline;
     private final ParserConfig parserConfig;
+    private final S3FileStorageService s3FileStorageService;
+    private final ParseResultCacheService cacheService;
 
     public ExamSessionFacadeImpl(ExamSessionRepository sessionRepository,
                                   StudentRepository studentRepository,
                                   UploadedFileRepository fileRepository,
                                   PdfParserPipeline parserPipeline,
-                                  ParserConfig parserConfig) {
+                                  ParserConfig parserConfig,
+                                  S3FileStorageService s3FileStorageService,
+                                  ParseResultCacheService cacheService) {
         this.sessionRepository = sessionRepository;
         this.studentRepository = studentRepository;
         this.fileRepository = fileRepository;
         this.parserPipeline = parserPipeline;
         this.parserConfig = parserConfig;
+        this.s3FileStorageService = s3FileStorageService;
+        this.cacheService = cacheService;
     }
 
     @Override
@@ -135,7 +143,7 @@ public class ExamSessionFacadeImpl implements ExamSessionService {
     private ParseResult resolveParseResult(UUID fileId) {
         // Try cache first (versioned — stale entries from old config are ignored)
         String currentVersion = parserConfig.getConfigVersion();
-        ParseResult cached = fileRepository.getCachedParseResult(fileId, currentVersion);
+        ParseResult cached = cacheService.getCachedParseResult(fileId, currentVersion);
         if (cached != null) {
             logger.debug("Using cached parse result for fileId={}, configVersion={}", fileId, currentVersion);
             return cached;
@@ -144,9 +152,9 @@ public class ExamSessionFacadeImpl implements ExamSessionService {
         // Fallback: re-parse from stored bytes
         logger.info("Cache miss for fileId={} (configVersion={}), falling back to re-parse",
                 fileId, currentVersion);
-        byte[] pdfBytes = fileRepository.getFileBytes(fileId);
+        byte[] pdfBytes = s3FileStorageService.getFileBytes(fileId);
         if (pdfBytes == null || pdfBytes.length == 0) {
-            throw new RuntimeException("File data is missing");
+            throw new RuntimeException("File data is missing from cloud storage");
         }
         return parserPipeline.parse(pdfBytes);
     }

@@ -2,6 +2,8 @@ package com.exam.controller;
 
 import com.exam.entity.Hall;
 import com.exam.repository.HallRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,11 +20,13 @@ public class HallController {
     }
 
     @GetMapping
+    @Cacheable(value = "halls", key = "T(com.exam.config.tenant.TenantContext).getCurrentTenant() ?: 'MASTER'")
     public ResponseEntity<List<Hall>> getAllHalls() {
         return ResponseEntity.ok(hallRepository.findAll());
     }
 
     @PostMapping
+    @CacheEvict(value = "halls", allEntries = true)
     public ResponseEntity<Hall> createHall(@RequestBody Hall hall) {
         if (hallRepository.existsById(hall.getId())) {
             return ResponseEntity.badRequest().build();
@@ -31,6 +35,7 @@ public class HallController {
     }
 
     @DeleteMapping("/{id}")
+    @CacheEvict(value = "halls", allEntries = true)
     public ResponseEntity<Void> deleteHall(@PathVariable String id) {
         if (!hallRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
@@ -40,6 +45,7 @@ public class HallController {
     }
 
     @PutMapping("/{id}")
+    @CacheEvict(value = "halls", allEntries = true)
     public ResponseEntity<Hall> updateHall(@PathVariable String id, @RequestBody Hall updatedHall) {
         return hallRepository.findById(id)
                 .map(hall -> {
@@ -53,3 +59,4 @@ public class HallController {
                 .orElse(ResponseEntity.notFound().build());
     }
 }
+

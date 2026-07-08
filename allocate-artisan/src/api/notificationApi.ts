@@ -1,8 +1,8 @@
 import apiClient from "./axios";
 
 export const notificationApi = {
-  sendDutyEmails: (batchId: string) =>
-    apiClient.post(`/notifications/duty-emails/${batchId}`),
+  sendDutyEmails: (batchId: string, targetCategory?: string) =>
+    apiClient.post(`/notifications/duty-emails/${batchId}${targetCategory ? `?targetCategory=${targetCategory}` : ''}`),
 
   sendExamBroadcast: (batchId: string, message: string) =>
     apiClient.post(`/notifications/exam-broadcast/${batchId}`, { message }),
