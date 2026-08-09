@@ -179,7 +179,7 @@ public class ExcelGeneratorService {
             Row r5 = sheet.createRow(4);
             r5.setHeightInPoints(22);
             Cell c5 = r5.createCell(0);
-            String season = records.get(0).getExamSeason() != null ? records.get(0).getExamSeason().toUpperCase() : "MAY 2026";
+            String season = records.get(0).getExamSeason() != null ? records.get(0).getExamSeason().toUpperCase() : ("MAY " + java.time.LocalDate.now().getYear());
             c5.setCellValue(season + " EXAMINATIONS");
             c5.setCellStyle(sectionHeaderStyle);
             sheet.addMergedRegion(new CellRangeAddress(4, 4, 0, 12));
@@ -576,7 +576,7 @@ public class ExcelGeneratorService {
             Row r5 = sheet.createRow(4);
             r5.setHeightInPoints(22);
             Cell c5 = r5.createCell(0);
-            String season = records.get(0).getExamSeason() != null ? records.get(0).getExamSeason().toUpperCase() : "MAY 2026";
+            String season = records.get(0).getExamSeason() != null ? records.get(0).getExamSeason().toUpperCase() : ("MAY " + java.time.LocalDate.now().getYear());
             c5.setCellValue(season + " EXAMINATIONS");
             c5.setCellStyle(sectionHeaderStyle);
             sheet.addMergedRegion(new CellRangeAddress(4, 4, 0, 6));

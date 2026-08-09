@@ -254,7 +254,7 @@ public class ExcelServiceImpl implements ExcelService {
             Row row4 = sheet.createRow(currentRow++);
             String examDateStr = (session != null && session.getExamDate() != null)
                     ? session.getExamDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-                    : "30.07.2026";
+                    : java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
             Cell dateLabel = row4.createCell(0);
             dateLabel.setCellValue("DATE: " + examDateStr);
             dateLabel.setCellStyle(subTitleStyle);

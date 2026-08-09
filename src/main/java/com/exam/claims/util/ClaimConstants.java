@@ -49,7 +49,7 @@ public final class ClaimConstants {
     public static final String OFFICE_TITLE = "Office of the Controller of Examinations";
 
     public static String getExamTitle(String examSeason) {
-        String season = (examSeason != null && !examSeason.trim().isEmpty()) ? examSeason : "MAY 2026";
+        String season = (examSeason != null && !examSeason.trim().isEmpty()) ? examSeason : ("MAY " + java.time.LocalDate.now().getYear());
         return "UG/PG Central Valuation - " + season + " Examinations";
     }
 
