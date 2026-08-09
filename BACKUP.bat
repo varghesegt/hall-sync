@@ -1,35 +1,53 @@
 @echo off
-echo ========================================================
-echo        💾 DATABASE BACKUP UTILITY
-echo ========================================================
+title HallSync - Database Backup Utility
+color 0A
+
+echo.
+echo  ╔═══════════════════════════════════════════════════════════╗
+echo  ║     HallSync - DATABASE BACKUP UTILITY                    ║
+echo  ║     Creating a complete snapshot of all exam data...       ║
+echo  ╚═══════════════════════════════════════════════════════════╝
 echo.
 
-:: Get current date in YYYY-MM-DD format safely
-for /f "tokens=2-4 delims=/ " %%a in ('date /t') do (set date_stamp=%%c-%%a-%%b)
+:: 1. Ensure backups directory exists
+if not exist "backups" mkdir "backups"
 
-set BACKUP_FILE=exam_database_backup_%date_stamp%.sql
+:: 2. Generate robust, locale-independent timestamp
+for /f %%a in ('powershell -command "Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'"') do set STAMP=%%a
+set BACKUP_FILE=backups\exam_backup_%STAMP%.sql
 
-echo [1/2] Taking a snapshot of the exam seating database...
-:: Use the DATABASE container (hallsync-db), not the app container
+echo  [1/2] Creating database snapshot...
 docker exec -t hallsync-db pg_dump -U postgres -d exam_seat_allocation --clean --if-exists > "%BACKUP_FILE%"
 
 if %errorlevel% neq 0 (
     echo.
-    echo ❌ ERROR: Backup failed! Is the system running?
+    echo  ❌ ERROR: Backup failed!
+    echo  Please ensure the system is running (START.bat) before taking a backup.
     echo.
     pause
-    exit /b
+    exit /b 1
 )
 
-echo [2/2] Verifying backup file...
-echo ✅ Backup created successfully.
+echo        ✓ Snapshot saved to: %BACKUP_FILE%
 
 echo.
-echo ========================================================
-echo 🎉 BACKUP COMPLETE!
-echo File: %BACKUP_FILE%
+echo  [2/2] Verifying backup integrity...
+if exist "%BACKUP_FILE%" (
+    echo        ✓ Backup verified successfully.
+) else (
+    echo        ❌ ERROR: Backup file could not be verified.
+    pause
+    exit /b 1
+)
+
 echo.
-echo IMPORTANT: Copy this file to a Pendrive or Google Drive.
-echo ========================================================
+echo  ╔═══════════════════════════════════════════════════════════╗
+echo  ║                                                           ║
+echo  ║   🎉 BACKUP COMPLETED SUCCESSFULLY!                       ║
+echo  ║                                                           ║
+echo  ║   Saved to: %BACKUP_FILE%
+echo  ║   TIP: Copy this SQL file to a Pendrive or Google Drive.  ║
+echo  ║                                                           ║
+echo  ╚═══════════════════════════════════════════════════════════╝
 echo.
 pause
