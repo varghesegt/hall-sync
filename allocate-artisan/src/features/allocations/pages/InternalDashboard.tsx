@@ -1,38 +1,31 @@
-import { useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  uploadInternalExcel,
   getInternalStudentPreview,
-  createInternalSession,
-  triggerInternalAllocation,
-  getInternalLatestBatch,
-  downloadInternalBatchPdf,
-  downloadInternalBatchExcel,
-  downloadInternalBatchSummaryExcel,
 } from "@/api/internalApi";
-import type { UploadResponse, StudentPreviewResponse, SessionResponse, AllocationStatus } from "@/api/allocationApi";
-import type { ApiError } from "@/api/axios";
 import { ExcelUploadCard } from '@/features/claims/components/ExcelUploadCard';
-import { StudentPreviewTable } from "@/features/allocations/components/StudentPreviewTable";
 import { InternalSessionCard } from "@/features/allocations/components/InternalSessionCard";
 import { InternalAllocationCard } from "@/features/allocations/components/InternalAllocationCard";
-import { BatchSelector } from '@/features/claims/components/BatchSelector';
+import { PastAllocationsCard } from "@/features/allocations/components/PastAllocationsCard";
 import { RoomSelector } from "@/features/allocations/components/RoomSelector";
 import { StepIndicator } from "@/components/StepIndicator";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { LogOut, ShieldCheck, ArrowLeft, LayoutGrid, Users, ChevronDown, ChevronUp, Search, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { ChevronDown, ChevronUp, Search } from "lucide-react";
 
 export default function InternalDashboard() {
-  const [fileId, setFileId] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [fileId, setFileId] = useState<string | null>(() => sessionStorage.getItem("hall_sync_internal_file_id"));
+  const [sessionId, setSessionId] = useState<string | null>(() => sessionStorage.getItem("hall_sync_internal_session_id"));
   const [totalStudents, setTotalStudents] = useState<number | null>(null);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (fileId) sessionStorage.setItem("hall_sync_internal_file_id", fileId);
+  }, [fileId]);
+
+  useEffect(() => {
+    if (sessionId) sessionStorage.setItem("hall_sync_internal_session_id", sessionId);
+  }, [sessionId]);
 
   const steps = [
     { label: "Upload", completed: !!fileId, active: !fileId },
@@ -51,12 +44,18 @@ export default function InternalDashboard() {
 
         <div className="grid gap-6">
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-            <ExcelUploadCard fileId={fileId} onSuccess={setFileId} />
+            <ExcelUploadCard
+              fileId={fileId}
+              onSuccess={(fid) => {
+                setFileId(fid);
+                sessionStorage.setItem("hall_sync_internal_file_id", fid);
+              }}
+            />
           </div>
 
           {fileId && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-              <InternalStudentPreview fileId={fileId} />
+              <InternalStudentPreview fileId={fileId} onParsedCount={(count) => setTotalStudents(count)} />
             </div>
           )}
 
@@ -67,18 +66,28 @@ export default function InternalDashboard() {
               onSuccess={(sid, count) => {
                 setSessionId(sid);
                 setTotalStudents(count);
+                sessionStorage.setItem("hall_sync_internal_session_id", sid);
               }}
             />
           </div>
 
           {sessionId && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <RoomSelector onSelectionChange={setSelectedRooms} />
+              <RoomSelector
+                onSelectionChange={setSelectedRooms}
+                totalStudents={totalStudents}
+                isInternal={true}
+              />
             </div>
           )}
 
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400">
             <InternalAllocationCard sessionId={sessionId} selectedRooms={selectedRooms} />
+          </div>
+
+          {/* Dedicated Internal Allocation History & Downloads */}
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-500 pt-4">
+            <PastAllocationsCard isInternal={true} />
           </div>
         </div>
       </main>
@@ -111,12 +120,18 @@ export default function InternalDashboard() {
 }
 
 // Internal student preview component that uses internal API
-function InternalStudentPreview({ fileId }: { fileId: string }) {
-  const { data, isLoading, error } = useQuery({
+function InternalStudentPreview({ fileId, onParsedCount }: { fileId: string; onParsedCount?: (count: number) => void }) {
+  const { data } = useQuery({
     queryKey: ["internal-student-preview", fileId],
     queryFn: () => getInternalStudentPreview(fileId),
     enabled: !!fileId,
   });
+
+  useEffect(() => {
+    if (data?.totalStudents) {
+      onParsedCount?.(data.totalStudents);
+    }
+  }, [data, onParsedCount]);
 
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
@@ -154,163 +169,96 @@ function InternalStudentPreview({ fileId }: { fileId: string }) {
     return list;
   }, [data, search, deptFilter]);
 
-  const visible = filtered.slice(0, visibleCount);
-
-  if (!fileId) return null;
+  if (!data?.students || data.students.length === 0) return null;
 
   return (
-    <div className="rounded-xl border bg-white shadow-sm overflow-hidden transition-all duration-300">
-      <div 
-        className="border-b px-5 py-4 cursor-pointer select-none hover:bg-slate-50 flex items-center justify-between"
-        onClick={() => setExpanded(p => !p)}
-      >
-        <div>
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Users className="h-4 w-4 text-emerald-600" />
-            Student Roster Preview
-            {data && (
-              <Badge variant="secondary" className="ml-2 font-mono text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-none">
-                {data.totalStudents} parsed
-              </Badge>
-            )}
-          </h3>
-          <p className="text-xs text-slate-500 mt-1">
-            {isLoading 
-              ? "Loading students from uploaded Excel file..." 
-              : data 
-              ? `${departments.length} departments detected` 
-              : "Preview uploaded students"}
-          </p>
+    <div className="rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-md shadow-xs overflow-hidden">
+      <div className="flex items-center justify-between p-4 bg-slate-50/50 border-b border-slate-100">
+        <div className="flex items-center gap-3">
+          <span className="font-bold text-sm text-slate-900">Parsed Students Roster</span>
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            {data.totalStudents} Students
+          </span>
         </div>
-        {expanded ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
+        <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} className="h-8 w-8 p-0 text-slate-500">
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
       </div>
 
       {expanded && (
-        <div className="p-5 space-y-4 bg-slate-50/30">
-          {isLoading && (
-            <div className="flex items-center justify-center p-8 gap-3 text-sm text-slate-500">
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600" />
-              Processing Excel Data...
+        <div className="p-4 space-y-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3 justify-between">
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search reg no, name, dept..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-9 text-xs"
+              />
             </div>
-          )}
-
-          {error && (
-            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{error.message || "Failed to load student preview."}</span>
-            </div>
-          )}
-
-          {data && data.totalStudents > 0 && (
-            <>
-              {/* Department Filters */}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => { setDeptFilter(null); setVisibleCount(20); }}
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs font-bold transition-all shadow-sm",
-                    !deptFilter
-                      ? "border-emerald-500 bg-emerald-500 text-white shadow-emerald-500/20"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:border-slate-300"
-                  )}
-                >
-                  All Depts
-                </button>
-                {departments.map((dept) => (
-                  <button
+            <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
+              <Button
+                variant={deptFilter === null ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDeptFilter(null)}
+                className="h-7 text-[11px] px-2.5"
+              >
+                All ({data.totalStudents})
+              </Button>
+              {departments.map((dept) => {
+                const count = data.students.filter((s) => s.department === dept).length;
+                return (
+                  <Button
                     key={dept}
-                    onClick={() => { setDeptFilter(deptFilter === dept ? null : dept); setVisibleCount(20); }}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-xs font-bold transition-all shadow-sm",
-                      deptFilter === dept
-                        ? "border-emerald-500 bg-emerald-500 text-white shadow-emerald-500/20"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:border-slate-300"
-                    )}
+                    variant={deptFilter === dept ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDeptFilter(deptFilter === dept ? null : dept)}
+                    className="h-7 text-[11px] px-2.5"
                   >
-                    {dept}
-                  </button>
+                    {dept} ({count})
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="border border-slate-100 rounded-lg overflow-x-auto max-h-80 overflow-y-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 bg-slate-100/90 backdrop-blur-xs text-slate-600 font-semibold text-[11px] uppercase tracking-wider">
+                <tr>
+                  <th className="py-2.5 px-3 border-b border-slate-200">#</th>
+                  <th className="py-2.5 px-3 border-b border-slate-200">Register No</th>
+                  <th className="py-2.5 px-3 border-b border-slate-200">Student Name</th>
+                  <th className="py-2.5 px-3 border-b border-slate-200">Dept</th>
+                  <th className="py-2.5 px-3 border-b border-slate-200">Subject</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                {filtered.slice(0, visibleCount).map((s, idx) => (
+                  <tr key={s.registerNumber + idx} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-2 px-3 text-slate-400 text-[10px]">{idx + 1}</td>
+                    <td className="py-2 px-3 font-mono font-bold text-slate-900">{s.registerNumber}</td>
+                    <td className="py-2 px-3">{s.name}</td>
+                    <td className="py-2 px-3 font-semibold text-slate-600">{s.department}</td>
+                    <td className="py-2 px-3 text-slate-500">{s.subjectCode || "—"} {s.subjectName ? `(${s.subjectName})` : ""}</td>
+                  </tr>
                 ))}
-              </div>
+              </tbody>
+            </table>
+          </div>
 
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                <Input
-                  placeholder="Search by register number, name, department, or subject code..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setVisibleCount(20);
-                  }}
-                  className="pl-9 h-10 bg-white border-slate-200 shadow-sm rounded-xl text-sm"
-                />
-              </div>
-
-              {/* Table Wrapper */}
-              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                <div className="max-h-[350px] overflow-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-bold text-slate-700 w-12 border-b border-slate-200">#</th>
-                        <th className="px-4 py-3 text-left font-bold text-slate-700 border-b border-slate-200">Reg No</th>
-                        <th className="px-4 py-3 text-left font-bold text-slate-700 border-b border-slate-200">Name</th>
-                        <th className="px-4 py-3 text-left font-bold text-slate-700 border-b border-slate-200">Department</th>
-                        <th className="px-4 py-3 text-left font-bold text-slate-700 border-b border-slate-200">Subject Code</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visible.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="text-center text-slate-500 py-10 italic">
-                            No students match your filter.
-                          </td>
-                        </tr>
-                      ) : (
-                        visible.map((s, i) => (
-                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors">
-                            <td className="px-4 py-2.5 text-slate-400 font-mono text-[10px]">
-                              {i + 1}
-                            </td>
-                            <td className="px-4 py-2.5 font-bold font-mono text-slate-700">
-                              {s.registerNumber}
-                            </td>
-                            <td className="px-4 py-2.5 text-slate-700 font-medium">
-                              {s.name.replace(/^\d+[\s.]+\s*/, "")}
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <Badge variant="outline" className="bg-slate-100 text-slate-700 font-bold border-none">
-                                {s.department}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-2.5 font-mono text-emerald-700 font-bold">
-                              {s.subjectCode || s.subjectName || <span className="text-slate-400 italic font-sans font-normal">Not Provided</span>}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                
-                {/* Footer / Load More */}
-                <div className="bg-slate-50 border-t border-slate-100 p-3 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-medium ml-2">
-                    Showing {visible.length} of {filtered.length} students
-                  </span>
-                  {visibleCount < filtered.length && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setVisibleCount((c) => c + 50)}
-                      className="text-xs h-8 rounded-lg bg-white shadow-sm border-slate-200 hover:bg-slate-100"
-                    >
-                      Load More Students
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </>
+          {filtered.length > visibleCount && (
+            <div className="text-center pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setVisibleCount((prev) => prev + 50)}
+                className="text-xs text-slate-600"
+              >
+                Show More ({filtered.length - visibleCount} remaining)
+              </Button>
+            </div>
           )}
         </div>
       )}

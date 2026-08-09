@@ -26,6 +26,8 @@ interface RoomSelectorProps {
   value?: string[];
   /** Total students requiring seating (optional) */
   totalStudents?: number | null;
+  /** Whether this selector is for internal exam (40 capacity, 7x6 grid) */
+  isInternal?: boolean;
 }
 
 // ─── Floor Label Helpers ────────────────────────────────────────────────────
@@ -175,7 +177,7 @@ function FloorSection({
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
-export function RoomSelector({ disabled = false, onSelectionChange, totalStudents }: RoomSelectorProps) {
+export function RoomSelector({ disabled = false, onSelectionChange, totalStudents, isInternal = false }: RoomSelectorProps) {
   const rs = useRoomSelection();
   const prevSelectionRef = useRef<string>("");
 
@@ -276,60 +278,74 @@ export function RoomSelector({ disabled = false, onSelectionChange, totalStudent
           </div>
         </div>
 
-        {/* Dynamic Allocation Suggestion Banner */}
+        {/* Professional Capacity Analysis Summary */}
         {totalStudents && totalStudents > 0 && (() => {
           const allHalls = rs.blockGroups.flatMap((bg) => bg.allRooms);
+          const perRoomCapacity = isInternal ? 40 : 25;
+          
           const selectedCapacity = allHalls
             .filter((h) => rs.selectedIds.has(h.id))
-            .reduce((sum, h) => sum + (h.capacity || 25), 0);
+            .reduce((sum, h) => sum + (isInternal ? (h.internalCapacity || 40) : (h.capacity || 25)), 0);
 
-          const averageCapacity = 25; // standard seats per room
-          const suggestedRooms = Math.ceil(totalStudents / averageCapacity);
-
+          const requiredHalls = Math.ceil(totalStudents / perRoomCapacity);
           const underCapacity = selectedCapacity < totalStudents;
+          const remainingHalls = Math.max(0, requiredHalls - rs.selectedCount);
 
           return (
-            <div className={cn(
-              "flex flex-col gap-3 rounded-xl border p-4 transition-all duration-300 animate-in fade-in slide-in-from-top-3 duration-500",
-              underCapacity
-                ? "bg-amber-50/70 border-amber-200/80 shadow-sm"
-                : "bg-emerald-50/70 border-emerald-200/80 shadow-sm"
-            )}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "h-2 w-2 rounded-full animate-pulse",
-                      underCapacity ? "bg-amber-500" : "bg-emerald-500"
-                    )} />
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
-                      Smart Seating Recommendation
-                    </h3>
-                  </div>
-                  <p className="text-xs font-medium text-slate-600">
-                    Allocating <span className="font-bold text-slate-900">{totalStudents} students</span>. Standard setup requires approximately <span className="font-extrabold text-primary underline decoration-2 decoration-primary/20 underline-offset-2">{suggestedRooms} classes</span>.
-                  </p>
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                
+                {/* Metric 1: Parsed Students */}
+                <div className="px-2">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                    Parsed Students
+                  </span>
+                  <span className="text-xl font-bold text-slate-900 mt-0.5 block">
+                    {totalStudents}
+                  </span>
+                  <span className="text-[11px] text-slate-400">From uploaded roster</span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
-                    <span className="block text-[9px] uppercase font-black text-slate-400 tracking-wider">Seating Deficit/Surplus</span>
-                    <span className={cn(
-                      "text-xs font-extrabold tracking-tight",
-                      underCapacity ? "text-amber-700" : "text-emerald-700"
-                    )}>
-                      {selectedCapacity} / {totalStudents} seats locked
-                    </span>
-                  </div>
-                  <Badge className={cn(
-                    "text-[10px] font-black uppercase tracking-wider h-7 px-2.5 shadow-sm transition-all duration-300",
-                    underCapacity
-                      ? "bg-amber-500 text-white hover:bg-amber-600 animate-pulse"
-                      : "bg-emerald-600 text-white hover:bg-emerald-700"
-                  )}>
-                    {underCapacity ? `${totalStudents - selectedCapacity} Seats Short` : "Ready"}
-                  </Badge>
+                {/* Metric 2: Required Halls */}
+                <div className="pt-2 md:pt-0 md:px-4">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                    Required Halls
+                  </span>
+                  <span className="text-xl font-bold text-slate-900 mt-0.5 block">
+                    {requiredHalls} <span className="text-xs font-normal text-slate-500">Halls</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400">{perRoomCapacity} seats/hall ({isInternal ? "7×6 Grid" : "5×5 Grid"})</span>
                 </div>
+
+                {/* Metric 3: Selected Capacity */}
+                <div className="pt-2 md:pt-0 md:px-4">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                    Selected Capacity
+                  </span>
+                  <span className="text-xl font-bold text-slate-900 mt-0.5 block">
+                    {selectedCapacity} / {totalStudents} <span className="text-xs font-normal text-slate-500">seats</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400">{rs.selectedCount} / {requiredHalls} halls selected</span>
+                </div>
+
+                {/* Metric 4: Capacity Status */}
+                <div className="pt-2 md:pt-0 md:px-4 flex flex-col justify-between">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                    Capacity Status
+                  </span>
+                  <div className="mt-1">
+                    {underCapacity ? (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold">
+                        Need {remainingHalls} more hall{remainingHalls !== 1 ? 's' : ''} ({totalStudents - selectedCapacity} seats short)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
+                        Capacity Satisfied
+                      </span>
+                    )}
+                  </div>
+                </div>
+
               </div>
             </div>
           );

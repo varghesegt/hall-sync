@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, Play, CheckCircle2, XCircle, Search, Users, ShieldAlert, FileText, Check, ShieldCheck, UserCheck, RefreshCw, Building2 } from "lucide-react";
+import { Download, Play, CheckCircle2, XCircle, Search, Users, ShieldAlert, FileText, Check, ShieldCheck, UserCheck, RefreshCw, Building2, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { BatchSelector } from "@/features/claims/components/BatchSelector";
 import { getBatchPreview, PreviewSeat } from "@/api/allocationApi";
@@ -231,6 +231,30 @@ export default function InternalDutyAllocation() {
     }
   };
 
+  const handleDownloadDutySchedule = async () => {
+    if (!selectedBatch) return;
+    try {
+      const response = await dutyApi.downloadDutySchedule(selectedBatch);
+      const contentDisposition = response.headers["content-disposition"];
+      let filename = `Internal_Exam_Duty_Schedule_${new Date().toISOString().split("T")[0]}.xlsx`;
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^";]+)"?/);
+        if (match && match[1]) filename = match[1];
+      }
+
+      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      toast.success(`Downloaded ${filename}`);
+    } catch (error) {
+      toast.error("Failed to download Duty Schedule");
+    }
+  };
+
   const toggleAttendance = async (dutyId: string, currentState: boolean | null) => {
     try {
       const newState = !currentState;
@@ -302,6 +326,15 @@ export default function InternalDutyAllocation() {
             className="gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
           >
             <Download size={16} /> Word Chart (.docx)
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={handleDownloadDutySchedule}
+            disabled={!selectedBatch || duties.length === 0}
+            className="gap-2 border-orange-200 text-orange-700 hover:bg-orange-50"
+          >
+            <ClipboardList size={16} /> Duty Schedule
           </Button>
 
           <Button

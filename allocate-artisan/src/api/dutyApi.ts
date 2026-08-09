@@ -48,4 +48,7 @@ export const dutyApi = {
 
   swapDuty: (dutyId: string, newFacultyId: string) =>
     apiClient.put(`/duties/${dutyId}/swap/${newFacultyId}`),
+
+  downloadDutySchedule: (batchId: string) =>
+    apiClient.get(`/duties/batch/${batchId}/duty-schedule-excel`, { responseType: "blob" }),
 };

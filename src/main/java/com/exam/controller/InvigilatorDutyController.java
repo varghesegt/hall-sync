@@ -4,6 +4,7 @@ import com.exam.entity.AllocationBatch;
 import com.exam.entity.InvigilatorDuty;
 import com.exam.repository.AllocationBatchRepository;
 import com.exam.service.InvigilatorDutyService;
+import com.exam.service.InvigilatorDutyScheduleService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,10 +18,14 @@ import java.util.*;
 public class InvigilatorDutyController {
 
     private final InvigilatorDutyService dutyService;
+    private final InvigilatorDutyScheduleService dutyScheduleService;
     private final AllocationBatchRepository batchRepository;
 
-    public InvigilatorDutyController(InvigilatorDutyService dutyService, AllocationBatchRepository batchRepository) {
+    public InvigilatorDutyController(InvigilatorDutyService dutyService,
+                                      InvigilatorDutyScheduleService dutyScheduleService,
+                                      AllocationBatchRepository batchRepository) {
         this.dutyService = dutyService;
+        this.dutyScheduleService = dutyScheduleService;
         this.batchRepository = batchRepository;
     }
 
@@ -79,6 +84,14 @@ public class InvigilatorDutyController {
     public ResponseEntity<Void> swapDuty(@PathVariable UUID dutyId, @PathVariable UUID newFacultyId) {
         dutyService.swapDuty(dutyId, newFacultyId);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/batch/{batchId}/duty-schedule-excel")
+    public void downloadDutyScheduleExcel(@PathVariable UUID batchId, HttpServletResponse response) throws Exception {
+        String filename = getFormattedFilename(batchId, "xlsx").replace("Duty_Chart", "Duty_Schedule");
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
+        dutyScheduleService.generateDutyScheduleExcel(batchId, response.getOutputStream());
     }
 
     private String getFormattedFilename(UUID batchId, String ext) {

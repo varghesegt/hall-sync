@@ -9,6 +9,7 @@ export interface Room {
   floor: number;
   number: number | string;
   capacity: number;
+  internalCapacity: number;
 }
 
 export interface FloorGroup {
@@ -99,7 +100,8 @@ export function useRoomSelection(): UseRoomSelectionReturn {
           block: block || "HALL",
           floor: typeof floor === "number" && !isNaN(floor) ? floor : 1,
           number: number !== undefined && number !== null ? number : h.id,
-          capacity: h.capacity || 25
+          capacity: h.capacity || 25,
+          internalCapacity: h.internalCapacity || 40
         };
       });
     },

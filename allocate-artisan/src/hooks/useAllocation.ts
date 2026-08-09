@@ -28,7 +28,7 @@ export function useAllocation(sessionId: string | null, selectedRooms: string[] 
   const polling = useQuery({
     queryKey: ["batch-status", sessionId],
     queryFn: () => getLatestBatch(sessionId!),
-    enabled: !!sessionId && isTriggered,
+    enabled: !!sessionId,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === "ACTIVE" || status === "FAILED") return false;
@@ -90,6 +90,6 @@ export function useAllocation(sessionId: string | null, selectedRooms: string[] 
     downloadPdf,
     downloadExcel,
     downloadSummaryExcel,
-    isTriggered,
+    isTriggered: isTriggered || status === "ACTIVE",
   };
 }

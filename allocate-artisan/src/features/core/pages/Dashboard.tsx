@@ -1,23 +1,25 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { UploadCard } from '@/features/claims/components/UploadCard';
 import { StudentPreviewTable } from "@/features/allocations/components/StudentPreviewTable";
 import { SessionCard } from "@/features/allocations/components/SessionCard";
 import { AllocationCard } from "@/features/allocations/components/AllocationCard";
-import { BatchSelector } from '@/features/claims/components/BatchSelector';
+import { PastAllocationsCard } from "@/features/allocations/components/PastAllocationsCard";
 import { RoomSelector } from "@/features/allocations/components/RoomSelector";
 import { StepIndicator } from "@/components/StepIndicator";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { LogOut, ShieldCheck, ArrowLeft, LayoutGrid, Users, Search, AlertCircle, FileText } from "lucide-react";
-import { toast } from "sonner";
 
 export default function Dashboard() {
-  const [fileId, setFileId] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [fileId, setFileId] = useState<string | null>(() => sessionStorage.getItem("hall_sync_semester_file_id"));
+  const [sessionId, setSessionId] = useState<string | null>(() => sessionStorage.getItem("hall_sync_semester_session_id"));
   const [totalStudents, setTotalStudents] = useState<number | null>(null);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (fileId) sessionStorage.setItem("hall_sync_semester_file_id", fileId);
+  }, [fileId]);
+
+  useEffect(() => {
+    if (sessionId) sessionStorage.setItem("hall_sync_semester_session_id", sessionId);
+  }, [sessionId]);
 
   const steps = [
     { label: "Upload", completed: !!fileId, active: !fileId },
@@ -35,7 +37,13 @@ export default function Dashboard() {
 
         <div className="grid gap-8">
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-100">
-            <UploadCard fileId={fileId} onSuccess={setFileId} />
+            <UploadCard
+              fileId={fileId}
+              onSuccess={(fid) => {
+                setFileId(fid);
+                sessionStorage.setItem("hall_sync_semester_file_id", fid);
+              }}
+            />
           </div>
 
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200">
@@ -49,6 +57,7 @@ export default function Dashboard() {
               onSuccess={(sid, count) => {
                 setSessionId(sid);
                 setTotalStudents(count);
+                sessionStorage.setItem("hall_sync_semester_session_id", sid);
               }}
             />
           </div>
@@ -58,12 +67,18 @@ export default function Dashboard() {
               <RoomSelector
                 onSelectionChange={setSelectedRooms}
                 totalStudents={totalStudents}
+                isInternal={false}
               />
             </div>
           )}
 
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-500">
             <AllocationCard sessionId={sessionId} selectedRooms={selectedRooms} />
+          </div>
+
+          {/* Dedicated Semester Exam Allocation History & Downloads */}
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-600 pt-4">
+            <PastAllocationsCard isInternal={false} />
           </div>
         </div>
       </main>
