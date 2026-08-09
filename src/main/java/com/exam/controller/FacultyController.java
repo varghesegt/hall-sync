@@ -52,22 +52,32 @@ public class FacultyController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> update(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
-        Faculty faculty = facultyService.update(id,
-                (String) body.get("name"),
-                (String) body.get("employeeId"),
-                (String) body.get("department"),
-                (String) body.getOrDefault("designation", null),
-                (String) body.getOrDefault("phone", null),
-                (String) body.getOrDefault("email", null),
-                (String) body.getOrDefault("collegeName", null),
-                body.containsKey("isInternal") ? (Boolean) body.get("isInternal") : null,
-                body.containsKey("isAvailable") ? (Boolean) body.get("isAvailable") : null);
+        Faculty existing = facultyService.getById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Faculty not found: " + id));
+
+        String name = body.containsKey("name") ? (String) body.get("name") : existing.getName();
+        String employeeId = body.containsKey("employeeId") ? (String) body.get("employeeId") : existing.getEmployeeId();
+        String department = body.containsKey("department") ? (String) body.get("department") : existing.getDepartment();
+        String designation = body.containsKey("designation") ? (String) body.get("designation") : existing.getDesignation();
+        String phone = body.containsKey("phone") ? (String) body.get("phone") : existing.getPhone();
+        String email = body.containsKey("email") ? (String) body.get("email") : existing.getEmail();
+        String collegeName = body.containsKey("collegeName") ? (String) body.get("collegeName") : existing.getCollegeName();
+        Boolean isInternal = body.containsKey("isInternal") ? (Boolean) body.get("isInternal") : existing.getIsInternal();
+        Boolean isAvailable = body.containsKey("isAvailable") ? (Boolean) body.get("isAvailable") : existing.getIsAvailable();
+
+        Faculty faculty = facultyService.update(id, name, employeeId, department, designation, phone, email, collegeName, isInternal, isAvailable);
         return ResponseEntity.ok(toDto(faculty));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         facultyService.softDelete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Void> deleteAll() {
+        facultyService.softDeleteAll();
         return ResponseEntity.noContent().build();
     }
 

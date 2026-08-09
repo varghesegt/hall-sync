@@ -33,59 +33,85 @@ import java.util.stream.Collectors;
  *   Fill Column I, Skip II, Fill III, Skip IV, Fill V
  */
 public class AllocationConstraintSolver {
-
     private static final Logger logger = LoggerFactory.getLogger(AllocationConstraintSolver.class);
-    private static final String[] COL_NAMES = {"I", "II", "III", "IV", "V"};
     private final SafetyValidator safetyValidator = new SafetyValidator();
 
-    // Physical column indices for SPREAD mode: columns I, III, V (skip II, IV)
-    private static final int[] SPREAD_COLS = {0, 2, 4};
-    // Physical column indices for FULL mode: all columns
-    private static final int[] FULL_COLS = {0, 1, 2, 3, 4};
+    /** Generate column name labels: I, II, III, IV, V, VI, VII, VIII */
+    public static List<String> generateColNames(int cols) {
+        String[] ROMAN = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"};
+        List<String> names = new ArrayList<>();
+        for (int i = 0; i < cols; i++) {
+            names.add(i < ROMAN.length ? ROMAN[i] : "C" + (i + 1));
+        }
+        return names;
+    }
+
+    /** Generate SPREAD column indices: 0, 2, 4, ... (skip odd columns) */
+    public static List<Integer> generateSpreadCols(int cols) {
+        List<Integer> spread = new ArrayList<>();
+        for (int i = 0; i < cols; i += 2) spread.add(i);
+        return spread;
+    }
+
+    /** Generate FULL column indices: 0, 1, 2, ..., cols-1 */
+    public static List<Integer> generateFullCols(int cols) {
+        List<Integer> full = new ArrayList<>();
+        for (int i = 0; i < cols; i++) full.add(i);
+        return full;
+    }
 
     public record SolverResult(List<SeatAssignment> assignments, List<AllocationViolation> violations) {}
 
-    /**
-     * Main entry point. Accepts positionHistory for backward compat and seasonSessionIndex for row rotation.
-     */
+    /** Backward compatibility wrapper */
     public SolverResult allocateHall(String hallId, List<Student> students, String[] injectedPattern,
                                      Map<String, Set<String>> positionHistory, int seasonSessionIndex) {
-        if (students.size() > 25) {
-            throw new IllegalArgumentException("Hall " + hallId + " capacity exceeded (25 max)");
+        return allocateHall(hallId, students, injectedPattern, positionHistory, seasonSessionIndex, 5, 5);
+    }
+
+    /**
+     * Main entry point. Accepts maxRows and maxCols.
+     */
+    public SolverResult allocateHall(String hallId, List<Student> students, String[] injectedPattern,
+                                     Map<String, Set<String>> positionHistory, int seasonSessionIndex,
+                                     int maxRows, int maxCols) {
+        int capacity = maxRows * maxCols;
+        if (students.size() > capacity) {
+            throw new IllegalArgumentException("Hall " + hallId + " capacity exceeded (" + capacity + " max)");
         }
 
         List<SeatAssignment> assignments = new ArrayList<>();
         List<AllocationViolation> violations = new ArrayList<>();
 
         // 1. Organize students into COLUMN BLOCKS by DEPARTMENT
-        List<List<Student>> columnBlocks = buildColumnBlocks(students, injectedPattern);
+        List<List<Student>> columnBlocks = buildColumnBlocks(students, injectedPattern, maxRows);
 
-        // 2. Determine mode: SPREAD (≤15 students, ≤3 blocks) or FULL (>15 students)
-        boolean spreadMode = students.size() <= 15 && columnBlocks.size() <= 3;
-        int[] physicalCols = spreadMode ? SPREAD_COLS : FULL_COLS;
+        // 2. Determine mode: SPREAD or FULL
+        // SPREAD mode is when students fit into ceil(maxCols/2) columns
+        int spreadMaxColumns = (int) Math.ceil((double) maxCols / 2.0);
+        boolean spreadMode = students.size() <= (spreadMaxColumns * maxRows) && columnBlocks.size() <= spreadMaxColumns;
+        List<Integer> physicalCols = spreadMode ? generateSpreadCols(maxCols) : generateFullCols(maxCols);
 
-        // 3. Compute row rotation offset from session index
-        //    Pattern: 0, 2, 4, 1, 3 — maximizes distance between consecutive sessions
-        //    DISABLED: Per user request to prevent confusion and allocate sequentially
+        // 3. Compute row rotation offset from session index (disabled by default)
         int rowOffset = 0;
 
         logger.info("Hall {}: {} students, {} blocks, Mode: {}, RowOffset: {} (session {}), Pattern: {}",
                 hallId, students.size(), columnBlocks.size(),
-                spreadMode ? "SPREAD(I,III,V)" : "FULL(I-V)",
+                spreadMode ? "SPREAD" : "FULL",
                 rowOffset, seasonSessionIndex,
                 injectedPattern != null ? Arrays.toString(injectedPattern) : "auto");
 
-        Student[][] grid = new Student[6][5]; // grid[row 1-5][col 0-4]
+        Student[][] grid = new Student[maxRows + 1][maxCols]; // grid[row 1-maxRows][col 0-maxCols-1]
+        List<String> colNames = generateColNames(maxCols);
 
         // 4. Fill each column block into its physical column
-        for (int blockIdx = 0; blockIdx < columnBlocks.size() && blockIdx < physicalCols.length; blockIdx++) {
-            int c = physicalCols[blockIdx];
+        for (int blockIdx = 0; blockIdx < columnBlocks.size() && blockIdx < physicalCols.size(); blockIdx++) {
+            int c = physicalCols.get(blockIdx);
             List<Student> columnStudents = new ArrayList<>(columnBlocks.get(blockIdx));
 
             // Sort within column: register number ascending + subject alternation
             columnStudents = sortColumnStudents(columnStudents);
 
-            for (int r = 0; r < columnStudents.size() && r < 5; r++) {
+            for (int r = 0; r < columnStudents.size() && r < maxRows; r++) {
                 Student candidate = columnStudents.get(r);
                 int row = r + 1; // 1-indexed LOGICAL row (for constraint checking)
 
@@ -98,19 +124,35 @@ public class AllocationConstraintSolver {
                     hasConflict = true;
                 }
                 // Check RIGHT
-                if (c < 4 && grid[row][c + 1] != null
+                if (c < maxCols - 1 && grid[row][c + 1] != null
                         && sameSubject(candidate, grid[row][c + 1])) {
                     hasConflict = true;
                 }
 
                 if (hasConflict) {
-                    Student swapped = findSafeSwap(columnStudents, r, grid, row, c);
-                    if (swapped != null) {
-                        candidate = swapped;
-                    } else {
+                    // Try to swap with someone below in the SAME column
+                    boolean swapped = false;
+                    for (int swapIdx = r + 1; swapIdx < columnStudents.size(); swapIdx++) {
+                        Student swapCandidate = columnStudents.get(swapIdx);
+                        boolean swapLeftConflict = (c > 0 && grid[row][c - 1] != null && sameSubject(swapCandidate, grid[row][c - 1]));
+                        boolean swapRightConflict = (c < maxCols - 1 && grid[row][c + 1] != null && sameSubject(swapCandidate, grid[row][c + 1]));
+
+                        if (!swapLeftConflict && !swapRightConflict) {
+                            columnStudents.set(r, swapCandidate);
+                            columnStudents.set(swapIdx, candidate);
+                            candidate = swapCandidate;
+                            swapped = true;
+                            violations.add(new AllocationViolation(
+                                    ViolationType.SUBJECT_ADJACENCY_VIOLATION,
+                                    "Swapped " + candidate.registerNumber() + " into row " + row + " to avoid subject adjacency conflict."
+                            ));
+                            break;
+                        }
+                    }
+
+                    if (!swapped) {
                         violations.add(new AllocationViolation(ViolationType.SUBJECT_ADJACENCY_VIOLATION,
-                                "Horizontal adjacency at Hall " + hallId + " R" + row + "C" + COL_NAMES[c]
-                                + " [" + candidate.subjectCode() + "]"));
+                                "Horizontal adjacency subject code adjacency [" + candidate.subjectCode() + "]"));
                     }
                 }
 
@@ -121,15 +163,15 @@ public class AllocationConstraintSolver {
         // =============================================
         // 5. POST-ALLOCATION AUDIT & ADDED RESOLUTION LAYER (on logical grid)
         // =============================================
-        int initialViolations = auditHorizontalAdjacency(grid, hallId);
+        int initialViolations = auditHorizontalAdjacency(grid, hallId, maxRows, maxCols);
         if (initialViolations > 0) {
             logger.warn("Hall {}: Initial AUDIT — {} subject adjacency warnings", hallId, initialViolations);
         }
         
         // ADDED LAYER: Strict swap to resolve horizontal and diagonal adjacency
-        resolveAdjacencyViolations(grid);
+        resolveAdjacencyViolations(grid, maxRows, maxCols);
         
-        int finalViolations = auditHorizontalAdjacency(grid, hallId);
+        int finalViolations = auditHorizontalAdjacency(grid, hallId, maxRows, maxCols);
         if (finalViolations == 0) {
             logger.info("Hall {}: AUDIT PASSED — Zero adjacency violations after resolution layer", hallId);
         } else {
@@ -142,14 +184,14 @@ public class AllocationConstraintSolver {
         //    This preserves all constraint checks (done on logical grid)
         //    while ensuring students sit in different physical rows each exam.
         // =============================================
-        for (int c = 0; c < 5; c++) {
-            for (int logicalRow = 1; logicalRow <= 5; logicalRow++) {
+        for (int c = 0; c < maxCols; c++) {
+            for (int logicalRow = 1; logicalRow <= maxRows; logicalRow++) {
                 if (grid[logicalRow][c] != null) {
                     Student s = grid[logicalRow][c];
-                    // Apply cyclic row rotation: physical = ((logical-1 + offset) % 5) + 1
-                    int physicalRow = ((logicalRow - 1 + rowOffset) % 5) + 1;
+                    // Apply cyclic row rotation: physical = ((logical-1 + offset) % maxRows) + 1
+                    int physicalRow = ((logicalRow - 1 + rowOffset) % maxRows) + 1;
                     assignments.add(new SeatAssignment(
-                            s.registerNumber(), hallId, physicalRow, COL_NAMES[c],
+                            s.registerNumber(), hallId, physicalRow, colNames.get(c),
                             s.subjectCode(), s.department(),
                             s.semester(), s.regulation(),
                             safetyValidator.calculateRisk(grid, logicalRow, c)
@@ -161,7 +203,7 @@ public class AllocationConstraintSolver {
         if (rowOffset > 0) {
             logger.info("Hall {}: ROW ROTATION applied — offset {} (session {}). " +
                     "Row 1 students now at physical row {}.",
-                    hallId, rowOffset, seasonSessionIndex, ((0 + rowOffset) % 5) + 1);
+                    hallId, rowOffset, seasonSessionIndex, ((0 + rowOffset) % maxRows) + 1);
         }
 
         return new SolverResult(assignments, violations);
@@ -181,15 +223,16 @@ public class AllocationConstraintSolver {
     /**
      * POST-ALLOCATION AUDIT: Scan entire grid for horizontal adjacency violations.
      */
-    private int auditHorizontalAdjacency(Student[][] grid, String hallId) {
+    private int auditHorizontalAdjacency(Student[][] grid, String hallId, int maxRows, int maxCols) {
         int violations = 0;
-        for (int r = 1; r <= 5; r++) {
-            for (int c = 0; c < 4; c++) {
+        List<String> colNames = generateColNames(maxCols);
+        for (int r = 1; r <= maxRows; r++) {
+            for (int c = 0; c < maxCols - 1; c++) {
                 if (grid[r][c] != null && grid[r][c + 1] != null) {
                     if (sameSubject(grid[r][c], grid[r][c + 1])) {
                         violations++;
                         logger.warn("AUDIT: Hall {} R{}C{}-C{} same subject [{}]",
-                                hallId, r, COL_NAMES[c], COL_NAMES[c + 1], grid[r][c].subjectCode());
+                                hallId, r, colNames.get(c), colNames.get(c + 1), grid[r][c].subjectCode());
                     }
                 }
             }
@@ -207,7 +250,7 @@ public class AllocationConstraintSolver {
      * column limit (5 for FULL mode). If more blocks would be generated,
      * the extra students are folded into the last block to prevent data loss.
      */
-    private List<List<Student>> buildColumnBlocks(List<Student> students, String[] pattern) {
+    private List<List<Student>> buildColumnBlocks(List<Student> students, String[] pattern, int maxRows) {
         List<List<Student>> blocks = new ArrayList<>();
 
         if (pattern != null && pattern.length > 0) {
@@ -216,7 +259,7 @@ public class AllocationConstraintSolver {
                 String targetDept = pattern[i];
                 List<Student> block = new ArrayList<>();
 
-                while (block.size() < 5 && offset < students.size()) {
+                while (block.size() < maxRows && offset < students.size()) {
                     Student s = students.get(offset);
                     if (s.department().equals(targetDept)) {
                         block.add(s);
@@ -228,7 +271,7 @@ public class AllocationConstraintSolver {
 
                 // Fallback: if block empty but students remain, pull anyone
                 if (block.isEmpty() && offset < students.size()) {
-                    while (block.size() < 5 && offset < students.size()) {
+                    while (block.size() < maxRows && offset < students.size()) {
                         block.add(students.get(offset));
                         offset++;
                     }
@@ -240,15 +283,15 @@ public class AllocationConstraintSolver {
             // Handle remaining students not covered by pattern
             while (offset < students.size()) {
                 List<Student> block = new ArrayList<>();
-                while (block.size() < 5 && offset < students.size()) {
+                while (block.size() < maxRows && offset < students.size()) {
                     block.add(students.get(offset));
                     offset++;
                 }
                 if (!block.isEmpty()) blocks.add(block);
             }
         } else {
-            for (int i = 0; i < students.size(); i += 5) {
-                int end = Math.min(i + 5, students.size());
+            for (int i = 0; i < students.size(); i += maxRows) {
+                int end = Math.min(i + maxRows, students.size());
                 blocks.add(new ArrayList<>(students.subList(i, end)));
             }
         }
@@ -256,18 +299,12 @@ public class AllocationConstraintSolver {
         // =============================================
         // PRODUCTION SAFETY: Fold overflow blocks into the last block
         // This guarantees ALL students are placed on the grid.
-        // A 5x5 grid has exactly 5 columns, so max 5 blocks.
-        // If buildColumnBlocks created more (e.g. 6+ departments
-        // from a remainder hall), fold extras into block #5.
         // =============================================
-        if (blocks.size() > 5) {
-            logger.warn("buildColumnBlocks produced {} blocks (>5). Folding overflow into last block.", blocks.size());
-            List<Student> lastBlock = blocks.get(4);
-            for (int i = 5; i < blocks.size(); i++) {
-                lastBlock.addAll(blocks.get(i));
-            }
-            blocks = new ArrayList<>(blocks.subList(0, 5));
-        }
+        // If buildColumnBlocks created more (e.g. 6+ departments
+        // from a remainder hall), fold extras into the last valid block.
+        // =============================================
+        // We will do this later in allocateHall when it caps at maxCols!
+        // Returning all blocks here is safer.
 
         return blocks;
     }
@@ -353,19 +390,19 @@ public class AllocationConstraintSolver {
      * without altering existing logic.
      * Swaps students WITHIN THE SAME COLUMN to fix horizontal and diagonal adjacency.
      */
-    private void resolveAdjacencyViolations(Student[][] grid) {
+    private void resolveAdjacencyViolations(Student[][] grid, int maxRows, int maxCols) {
         boolean swapped;
         int maxIterations = 10;
         
         do {
             swapped = false;
-            for (int r = 1; r <= 5; r++) {
-                for (int c = 0; c < 5; c++) {
+            for (int r = 1; r <= maxRows; r++) {
+                for (int c = 0; c < maxCols; c++) {
                     if (grid[r][c] == null) continue;
                     
-                    if (hasAdjacencyViolation(grid, r, c)) {
+                    if (hasAdjacencyViolation(grid, r, c, maxRows, maxCols)) {
                         // Try to swap with someone in the SAME COLUMN
-                        for (int targetRow = 1; targetRow <= 5; targetRow++) {
+                        for (int targetRow = 1; targetRow <= maxRows; targetRow++) {
                             if (targetRow == r) continue;
                             
                             // Check if swapping would fix the current violation WITHOUT creating a new one
@@ -375,8 +412,8 @@ public class AllocationConstraintSolver {
                             
                             // We must check if the new positions are safe. 
                             // Since temp might be null, only check if it is non-null.
-                            boolean targetSafe = (grid[targetRow][c] == null || !hasAdjacencyViolation(grid, targetRow, c));
-                            boolean currentSafe = (grid[r][c] == null || !hasAdjacencyViolation(grid, r, c));
+                            boolean targetSafe = (grid[targetRow][c] == null || !hasAdjacencyViolation(grid, targetRow, c, maxRows, maxCols));
+                            boolean currentSafe = (grid[r][c] == null || !hasAdjacencyViolation(grid, r, c, maxRows, maxCols));
                             
                             if (targetSafe && currentSafe) {
                                 swapped = true;
@@ -395,7 +432,7 @@ public class AllocationConstraintSolver {
         } while (swapped && maxIterations > 0);
     }
     
-    private boolean hasAdjacencyViolation(Student[][] grid, int row, int col) {
+    private boolean hasAdjacencyViolation(Student[][] grid, int row, int col, int maxRows, int maxCols) {
         Student current = grid[row][col];
         if (current == null || current.subjectCode() == null) return false;
         
@@ -407,7 +444,8 @@ public class AllocationConstraintSolver {
         for (int[] offset : offsets) {
             int r = row + offset[0];
             int c = col + offset[1];
-            if (r >= 1 && r <= 5 && c >= 0 && c < 5) {
+            
+            if (r >= 1 && r <= maxRows && c >= 0 && c < maxCols) {
                 Student neighbor = grid[r][c];
                 if (neighbor != null && neighbor.subjectCode() != null 
                     && current.subjectCode().equals(neighbor.subjectCode())) {

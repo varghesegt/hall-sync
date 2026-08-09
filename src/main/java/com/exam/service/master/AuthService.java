@@ -59,18 +59,9 @@ public class AuthService {
         try {
             com.exam.config.tenant.TenantContext.clear();
 
-            // If it's a tenantId (doesn't contain @), resolve it to its administrator email
-            if (inputUsername != null && !inputUsername.contains("@")) {
-                Optional<Tenant> tenantOpt = tenantRepository.findByTenantId(inputUsername);
-                if (tenantOpt.isPresent()) {
-                    Tenant tenant = tenantOpt.get();
-                    // Direct DB query instead of loading ALL users into memory
-                    Optional<AppUser> adminOpt = userRepository.findFirstByTenant_Id(tenant.getId());
-                    if (adminOpt.isPresent()) {
-                        resolvedEmail = adminOpt.get().getEmail();
-                    }
-                }
-            }
+            // Enforce Strict Isolation: The user must exist and their tenant ID must match the requested one
+            // We'll verify this after retrieving the user from the DB.
+
 
             final UserDetails userDetails = userDetailsService.loadUserByUsername(resolvedEmail);
             logger.debug(">>> AuthService: Checking password manually via encoder...");
@@ -82,6 +73,12 @@ public class AuthService {
             );
 
             AppUser appUser = userRepository.findByEmail(resolvedEmail).orElseThrow();
+            
+            if (appUser.getTenant() != null && !appUser.getTenant().getTenantId().equals(request.getTenantId())) {
+                if (!appUser.getRole().equals("ROLE_SUPER_ADMIN")) {
+                    throw new org.springframework.security.authentication.BadCredentialsException("Invalid credentials for this college.");
+                }
+            }
         
         String tenantId = null;
         if (appUser.getTenant() != null) {

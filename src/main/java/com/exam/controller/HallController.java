@@ -31,6 +31,13 @@ public class HallController {
         if (hallRepository.existsById(hall.getId())) {
             return ResponseEntity.badRequest().build();
         }
+        // Auto-calculate capacity from grid dimensions if dimensions are set
+        if (hall.getSemRows() != null && hall.getSemCols() != null) {
+            hall.setCapacity(hall.getSemRows() * hall.getSemCols());
+        }
+        if (hall.getInternalRows() != null && hall.getInternalCols() != null) {
+            hall.setInternalCapacity(hall.getInternalRows() * hall.getInternalCols());
+        }
         return ResponseEntity.ok(hallRepository.save(hall));
     }
 
@@ -50,10 +57,22 @@ public class HallController {
         return hallRepository.findById(id)
                 .map(hall -> {
                     hall.setName(updatedHall.getName());
-                    hall.setCapacity(updatedHall.getCapacity());
-                    if (updatedHall.getInternalCapacity() != null) {
-                        hall.setInternalCapacity(updatedHall.getInternalCapacity());
+                    // Update grid dimensions
+                    if (updatedHall.getSemRows() != null) {
+                        hall.setSemRows(updatedHall.getSemRows());
                     }
+                    if (updatedHall.getSemCols() != null) {
+                        hall.setSemCols(updatedHall.getSemCols());
+                    }
+                    if (updatedHall.getInternalRows() != null) {
+                        hall.setInternalRows(updatedHall.getInternalRows());
+                    }
+                    if (updatedHall.getInternalCols() != null) {
+                        hall.setInternalCols(updatedHall.getInternalCols());
+                    }
+                    // Auto-calculate capacity from grid dimensions
+                    hall.setCapacity(hall.getSemRows() * hall.getSemCols());
+                    hall.setInternalCapacity(hall.getInternalRows() * hall.getInternalCols());
                     return ResponseEntity.ok(hallRepository.save(hall));
                 })
                 .orElse(ResponseEntity.notFound().build());

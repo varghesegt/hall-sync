@@ -41,8 +41,30 @@ public class FacultyService {
     public Faculty create(String name, String employeeId, String department,
                           String designation, String phone, String email,
                           String collegeName, Boolean isInternal, Boolean isAvailable) {
-        if (facultyRepository.existsByEmployeeId(employeeId)) {
-            throw new IllegalArgumentException("Faculty with employee ID " + employeeId + " already exists.");
+        Optional<Faculty> existingOpt = facultyRepository.findByEmployeeId(employeeId);
+        if (existingOpt.isPresent()) {
+            Faculty existing = existingOpt.get();
+            if (existing.getIsActive() != null && existing.getIsActive()) {
+                throw new IllegalArgumentException("Faculty with employee ID " + employeeId + " already exists.");
+            }
+            // Reactivate soft-deleted faculty member
+            existing.setName(name);
+            existing.setDepartment(department);
+            existing.setDesignation(designation);
+            existing.setPhone(phone);
+            existing.setEmail(email);
+            Boolean internal = isInternal != null ? isInternal : true;
+            String resolvedCollegeName = collegeName;
+            if (internal && (resolvedCollegeName == null || resolvedCollegeName.isBlank())) {
+                String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
+                resolvedCollegeName = com.exam.config.tenant.TenantContext.getCollegeName(tenantId);
+                if (resolvedCollegeName == null) resolvedCollegeName = "Internal College";
+            }
+            existing.setCollegeName(resolvedCollegeName);
+            existing.setIsInternal(internal);
+            if (isAvailable != null) existing.setIsAvailable(isAvailable);
+            existing.setIsActive(true);
+            return facultyRepository.save(existing);
         }
         
         Boolean internal = isInternal != null ? isInternal : true;
@@ -98,13 +120,23 @@ public class FacultyService {
     }
 
     @Transactional
+    public void softDeleteAll() {
+        List<Faculty> active = facultyRepository.findByIsActiveTrueOrderByDepartmentAscNameAsc();
+        for (Faculty f : active) {
+            f.setIsActive(false);
+        }
+        facultyRepository.saveAll(active);
+    }
+
+    @Transactional
     public Map<String, Object> bulkImportFromExcel(MultipartFile file) {
-        List<Faculty> created = new ArrayList<>();
+        List<Faculty> toSave = new ArrayList<>();
         List<String> skipped = new ArrayList<>();
+        Set<String> processedEmpIds = new HashSet<>();
         int rowCount = 0;
 
         try (InputStream is = file.getInputStream();
-             Workbook workbook = new XSSFWorkbook(is)) {
+             Workbook workbook = WorkbookFactory.create(is)) {
 
             Sheet sheet = workbook.getSheetAt(0);
             Iterator<Row> rows = sheet.iterator();
@@ -135,14 +167,16 @@ public class FacultyService {
                     continue;
                 }
 
-                if (facultyRepository.existsByEmployeeId(employeeId.trim())) {
-                    skipped.add("Row " + (rowCount + 1) + ": employee ID " + employeeId + " already exists");
+                String empIdClean = employeeId.trim();
+                if (processedEmpIds.contains(empIdClean)) {
+                    skipped.add("Row " + (rowCount + 1) + ": duplicate employee ID " + empIdClean + " in file");
                     continue;
                 }
+                processedEmpIds.add(empIdClean);
 
                 boolean isInternal = isInternalStr == null || !isInternalStr.trim().equalsIgnoreCase("No");
                 boolean isAvailable = isAvailableStr == null || !isAvailableStr.trim().equalsIgnoreCase("No");
-                
+
                 String resolvedCollegeName = collegeName;
                 if (isInternal && (resolvedCollegeName == null || resolvedCollegeName.isBlank())) {
                     String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
@@ -150,17 +184,33 @@ public class FacultyService {
                     if (resolvedCollegeName == null) resolvedCollegeName = "Internal College";
                 }
 
-                Faculty faculty = new Faculty(UUID.randomUUID(), name.trim(), employeeId.trim(),
+                Optional<Faculty> existingOpt = facultyRepository.findByEmployeeId(empIdClean);
+                if (existingOpt.isPresent()) {
+                    Faculty existing = existingOpt.get();
+                    existing.setName(name.trim());
+                    existing.setDepartment(department != null ? department.trim() : "UNKNOWN");
+                    existing.setDesignation(designation != null ? designation.trim() : null);
+                    existing.setPhone(phone != null ? phone.trim() : null);
+                    existing.setEmail(email != null ? email.trim() : null);
+                    existing.setCollegeName(resolvedCollegeName);
+                    existing.setIsInternal(isInternal);
+                    existing.setIsAvailable(isAvailable);
+                    existing.setIsActive(true);
+                    toSave.add(existing);
+                    continue;
+                }
+
+                Faculty faculty = new Faculty(UUID.randomUUID(), name.trim(), empIdClean,
                         department != null ? department.trim() : "UNKNOWN",
                         designation != null ? designation.trim() : null,
                         phone != null ? phone.trim() : null,
                         email != null ? email.trim() : null,
                         resolvedCollegeName, isInternal, isAvailable);
-                created.add(faculty);
+                toSave.add(faculty);
             }
 
-            if (!created.isEmpty()) {
-                facultyRepository.saveAll(created);
+            if (!toSave.isEmpty()) {
+                facultyRepository.saveAll(toSave);
             }
 
         } catch (Exception e) {
@@ -169,7 +219,7 @@ public class FacultyService {
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("imported", created.size());
+        result.put("imported", toSave.size());
         result.put("skipped", skipped.size());
         result.put("totalRows", rowCount);
         result.put("skippedDetails", skipped);

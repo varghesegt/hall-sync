@@ -32,12 +32,13 @@ export default function AppointmentOrders() {
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
 
   const roles = [
-    "Invigilator",
-    "Lab Incharge",
-    "Internal Examiner",
-    "External Examiner",
-    "Squad Member",
-    "Chief Superintendent"
+    "Question Bank Scrutiny Member",
+    "Examiner for Audit Valuation",
+    "Enquiry Committee Member (ECM)",
+    "Examiner for Valuation",
+    "Chief Examiner - Valuation",
+    "Squad for Theory Examinations",
+    "External Examiner - UG End Semester Practical"
   ];
 
   const fetchFaculty = async () => {

@@ -72,4 +72,5 @@ public class InvigilatorDuty {
     public void setIsPresent(Boolean isPresent) { this.isPresent = isPresent; }
     public void setMarkedAt(LocalDateTime markedAt) { this.markedAt = markedAt; }
     public void setDutyType(String dutyType) { this.dutyType = dutyType; }
+    public void setFaculty(Faculty faculty) { this.faculty = faculty; }
 }

@@ -35,7 +35,7 @@ const AdminDashboard = () => {
       setAdminPassword("");
     } catch (error: any) {
       toast.error("Creation Failed", {
-        description: error?.message || "Unable to provision college.",
+        description: error.response?.data || error.message || "Unable to provision college. Email or Tenant ID might already exist.",
       });
     } finally {
       setLoading(false);

@@ -42,4 +42,10 @@ export const dutyApi = {
 
   downloadExcel: (batchId: string) =>
     apiClient.get(`/duties/batch/${batchId}/excel`, { responseType: "blob" }),
+
+  downloadWord: (batchId: string) =>
+    apiClient.get(`/duties/batch/${batchId}/word`, { responseType: "blob" }),
+
+  swapDuty: (dutyId: string, newFacultyId: string) =>
+    apiClient.put(`/duties/${dutyId}/swap/${newFacultyId}`),
 };

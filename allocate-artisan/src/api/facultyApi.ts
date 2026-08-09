@@ -26,6 +26,8 @@ export const facultyApi = {
 
   delete: (id: string) => apiClient.delete(`/faculty/${id}`),
 
+  deleteAll: () => apiClient.delete("/faculty"),
+
   bulkUpload: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);

@@ -106,8 +106,8 @@ export function DashboardLayout() {
 
       <SidebarProvider>
         <AppSidebar settings={settings} />
-        <SidebarInset className="bg-transparent min-w-0 flex-1 w-full max-w-full">
-          <header className="flex h-[72px] shrink-0 items-center gap-2 border-b border-slate-200/50 bg-white/70 backdrop-blur-2xl px-4 md:px-8 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-16 sticky top-0 z-50 min-w-0 w-full max-w-full shadow-[0_4px_30px_-10px_rgba(0,0,0,0.05)]">
+        <SidebarInset className="bg-slate-50 min-w-0 flex-1 w-full max-w-full">
+          <header className="flex h-[72px] shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 md:px-8 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-16 sticky top-0 z-50 min-w-0 w-full max-w-full shadow-sm">
             <div className="flex items-center gap-4 px-2 w-full min-w-0">
               <SidebarTrigger className="-ml-2 shrink-0 tour-sidebar-trigger hover:bg-slate-100 hover:text-indigo-600 transition-colors rounded-xl" />
               <Separator orientation="vertical" className="mr-2 h-6 bg-slate-200 shrink-0" />
@@ -134,7 +134,7 @@ export function DashboardLayout() {
                   variant="outline"
                   size="sm"
                   onClick={handleLogout}
-                  className="group h-10 px-5 border border-slate-200/60 bg-white text-slate-600 hover:bg-slate-900 hover:text-white hover:border-slate-900 shadow-sm hover:shadow-[0_8px_20px_-6px_rgba(15,23,42,0.3)] gap-2.5 transition-all duration-300 rounded-xl"
+                  className="group h-10 px-5 border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 shadow-sm gap-2 transition-all duration-300 rounded-lg"
                 >
                   <LogOut size={16} strokeWidth={2.5} className="transition-transform duration-300 group-hover:-translate-x-0.5" />
                   <span className="font-bold text-[12px] uppercase tracking-widest hidden sm:inline-block">Sign Out</span>

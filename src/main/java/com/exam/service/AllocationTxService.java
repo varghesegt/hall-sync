@@ -141,7 +141,11 @@ public class AllocationTxService {
         }
 
         List<com.exam.engine.model.Hall> engineHalls = halls.stream()
-                .map(h -> new com.exam.engine.model.Hall(h.getId(), h.getCapacity()))
+                .map(h -> new com.exam.engine.model.Hall(h.getId(), 
+                    h.getCapacity(),
+                    (h.getSemRows() != null ? h.getSemRows() : 5),
+                    (h.getSemCols() != null ? h.getSemCols() : 5)
+                ))
                 .toList();
 
         logger.info("[{}] Initializing AllocationEngine for {} students and {} halls", allocationRequestId, engineStudents.size(), engineHalls.size());

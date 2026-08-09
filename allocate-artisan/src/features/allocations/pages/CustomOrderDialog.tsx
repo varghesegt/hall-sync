@@ -16,18 +16,53 @@ interface CustomOrderDialogProps {
   initialFacultyId?: string;
 }
 
+const ROLES = [
+  "Question Bank Scrutiny Member",
+  "Examiner for Audit Valuation",
+  "Enquiry Committee Member (ECM)",
+  "Examiner for Valuation",
+  "Chief Examiner - Valuation",
+  "Squad for Theory Examinations",
+  "External Examiner - UG End Semester Practical"
+];
+
+const BOARDS = [
+  "ECE",
+  "CSE",
+  "EEE",
+  "MECH",
+  "CIVIL",
+  "CSBS",
+  "AIDS",
+  "ENGLISH",
+  "PHYSICS",
+  "CHEMISTRY",
+  "MATHS"
+];
+
 export function CustomOrderDialog({ open, onOpenChange, facultyList, onFacultyCreated, initialFacultyId }: CustomOrderDialogProps) {
   const [season, setSeason] = useState("");
   const [date, setDate] = useState("");
-  const [role, setRole] = useState("Invigilator");
+  const [role, setRole] = useState(ROLES[0]);
   const [selectedFacultyId, setSelectedFacultyId] = useState("");
-  
+
+  // Role-specific fields
+  const [board, setBoard] = useState("");
+  const [time, setTime] = useState("");
+  const [venue, setVenue] = useState("");
+  const [subjectCode, setSubjectCode] = useState("");
+  const [subjectName, setSubjectName] = useState("");
+  const [noOfCandidates, setNoOfCandidates] = useState("");
+  const [semester, setSemester] = useState("");
+  const [internalExaminerName, setInternalExaminerName] = useState("");
+  const [internalExaminerPhone, setInternalExaminerPhone] = useState("");
+
   useEffect(() => {
     if (open) {
       setSelectedFacultyId(initialFacultyId || "");
     }
   }, [open, initialFacultyId]);
-  
+
   const [isCreatingStaff, setIsCreatingStaff] = useState(false);
   const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
   const [newStaff, setNewStaff] = useState({
@@ -39,14 +74,11 @@ export function CustomOrderDialog({ open, onOpenChange, facultyList, onFacultyCr
     collegeName: "",
   });
 
-  const roles = [
-    "Invigilator",
-    "Lab Incharge",
-    "Internal Examiner",
-    "External Examiner",
-    "Squad Member",
-    "Chief Superintendent"
-  ];
+  // Determine which extra fields to show based on role
+  const needsBoard = ["Examiner for Audit Valuation", "Examiner for Valuation", "Chief Examiner - Valuation"].includes(role);
+  const needsTime = ["Question Bank Scrutiny Member", "Examiner for Audit Valuation", "Enquiry Committee Member (ECM)", "Examiner for Valuation", "Chief Examiner - Valuation", "External Examiner - UG End Semester Practical"].includes(role);
+  const needsVenue = ["Question Bank Scrutiny Member", "Enquiry Committee Member (ECM)"].includes(role);
+  const needsPracticalFields = role === "External Examiner - UG End Semester Practical";
 
   const handleGenerateOrder = () => {
     if (!selectedFacultyId) {
@@ -57,14 +89,23 @@ export function CustomOrderDialog({ open, onOpenChange, facultyList, onFacultyCr
     let url = `/api/v1/appointments/order/${selectedFacultyId}?role=${encodeURIComponent(role)}`;
     if (season) url += `&season=${encodeURIComponent(season)}`;
     if (date) url += `&date=${encodeURIComponent(date)}`;
+    if (board) url += `&board=${encodeURIComponent(board)}`;
+    if (time) url += `&time=${encodeURIComponent(time)}`;
+    if (venue) url += `&venue=${encodeURIComponent(venue)}`;
+    if (subjectCode) url += `&subjectCode=${encodeURIComponent(subjectCode)}`;
+    if (subjectName) url += `&subjectName=${encodeURIComponent(subjectName)}`;
+    if (noOfCandidates) url += `&noOfCandidates=${encodeURIComponent(noOfCandidates)}`;
+    if (semester) url += `&semester=${encodeURIComponent(semester)}`;
+    if (internalExaminerName) url += `&internalExaminerName=${encodeURIComponent(internalExaminerName)}`;
+    if (internalExaminerPhone) url += `&internalExaminerPhone=${encodeURIComponent(internalExaminerPhone)}`;
 
     const link = document.createElement("a");
     link.href = url;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    toast.success("Generating custom appointment order...");
+
+    toast.success("Generating appointment order...");
     onOpenChange(false);
   };
 
@@ -80,7 +121,7 @@ export function CustomOrderDialog({ open, onOpenChange, facultyList, onFacultyCr
       toast.success("Staff member created successfully");
       setSelectedFacultyId(response.data.id);
       setIsCreatingStaff(false);
-      onFacultyCreated(); // Refreshes the list in parent
+      onFacultyCreated();
     } catch (error) {
       toast.error("Failed to create staff member");
     } finally {
@@ -90,6 +131,15 @@ export function CustomOrderDialog({ open, onOpenChange, facultyList, onFacultyCr
 
   const resetForm = () => {
     setIsCreatingStaff(false);
+    setBoard("");
+    setTime("");
+    setVenue("");
+    setSubjectCode("");
+    setSubjectName("");
+    setNoOfCandidates("");
+    setSemester("");
+    setInternalExaminerName("");
+    setInternalExaminerPhone("");
     setNewStaff({
       name: "",
       employeeId: "",
@@ -105,53 +155,125 @@ export function CustomOrderDialog({ open, onOpenChange, facultyList, onFacultyCr
       onOpenChange(val);
       if (!val) resetForm();
     }}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <FileText className="h-5 w-5 text-blue-600" />
-            Custom Appointment Order
+            Appointment Order Generator
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="grid gap-5 py-4">
+          {/* Role Selection */}
+          <div className="flex flex-col gap-2">
+            <Label className="font-semibold text-slate-700">Select Role <span className="text-red-500">*</span></Label>
+            <select
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Season and Date */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label className="font-semibold text-slate-700">Exam Season (Optional)</Label>
-              <Input 
-                placeholder="e.g. Nov/Dec 2024" 
+              <Label className="font-semibold text-slate-700">Exam Season</Label>
+              <Input
+                placeholder="e.g. APRIL/MAY-2026"
                 value={season}
                 onChange={(e) => setSeason(e.target.value)}
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label className="font-semibold text-slate-700">Order Date (Optional)</Label>
-              <Input 
-                type="date" 
+              <Label className="font-semibold text-slate-700">Order Date</Label>
+              <Input
+                type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label className="font-semibold text-slate-700">Select Role <span className="text-red-500">*</span></Label>
-            <select 
-              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              {roles.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
+          {/* Conditional Fields based on Role */}
+          {(needsBoard || needsTime || needsVenue) && (
+            <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-4 space-y-4 animate-in fade-in duration-200">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-blue-600">Role-Specific Details</h4>
+              <div className="grid grid-cols-2 gap-4">
+                {needsBoard && (
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-xs font-semibold text-slate-600">Board / Department</Label>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={board}
+                      onChange={(e) => setBoard(e.target.value)}
+                    >
+                      <option value="">-- Auto (Staff Dept) --</option>
+                      {BOARDS.map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {needsTime && (
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-xs font-semibold text-slate-600">Timings</Label>
+                    <Input placeholder="e.g. 9.00 a.m. - 05.00 p.m." value={time} onChange={(e) => setTime(e.target.value)} />
+                  </div>
+                )}
+                {needsVenue && (
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-xs font-semibold text-slate-600">Venue</Label>
+                    <Input placeholder="e.g. COE OFFICE, IQAC" value={venue} onChange={(e) => setVenue(e.target.value)} />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
+          {/* Practical Exam Fields */}
+          {needsPracticalFields && (
+            <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-4 space-y-4 animate-in fade-in duration-200">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-amber-600">Practical Exam Details</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-semibold text-slate-600">Subject Code</Label>
+                  <Input placeholder="e.g. GEA1107" value={subjectCode} onChange={(e) => setSubjectCode(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-semibold text-slate-600">Subject Name</Label>
+                  <Input placeholder="e.g. C PROGRAMMING LAB" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-semibold text-slate-600">No. of Candidates</Label>
+                  <Input type="number" placeholder="e.g. 23" value={noOfCandidates} onChange={(e) => setNoOfCandidates(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-semibold text-slate-600">Semester</Label>
+                  <Input placeholder="e.g. I, II, III" value={semester} onChange={(e) => setSemester(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-semibold text-slate-600">Internal Examiner Name</Label>
+                  <Input placeholder="e.g. Mr. P. KASTHURI RENGAN" value={internalExaminerName} onChange={(e) => setInternalExaminerName(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-semibold text-slate-600">Internal Examiner Phone</Label>
+                  <Input placeholder="e.g. 9842612131" value={internalExaminerPhone} onChange={(e) => setInternalExaminerPhone(e.target.value)} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Staff Selection */}
           <div className="flex flex-col gap-2">
             <Label className="font-semibold text-slate-700">Select Staff Member <span className="text-red-500">*</span></Label>
-            
+
             {!isCreatingStaff ? (
               <div className="flex gap-2">
-                <select 
+                <select
                   className="flex h-10 flex-1 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={selectedFacultyId}
                   onChange={(e) => setSelectedFacultyId(e.target.value)}
@@ -175,7 +297,7 @@ export function CustomOrderDialog({ open, onOpenChange, facultyList, onFacultyCr
                     <X size={16} />
                   </Button>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs">Name <span className="text-red-500">*</span></Label>
@@ -197,13 +319,13 @@ export function CustomOrderDialog({ open, onOpenChange, facultyList, onFacultyCr
 
                 <div className="flex items-center gap-4 mb-4">
                   <div className="flex items-center space-x-2">
-                    <Switch 
-                      checked={newStaff.isInternal} 
-                      onCheckedChange={(c) => setNewStaff({...newStaff, isInternal: c})} 
+                    <Switch
+                      checked={newStaff.isInternal}
+                      onCheckedChange={(c) => setNewStaff({...newStaff, isInternal: c})}
                     />
                     <Label className="text-xs font-semibold">Internal Staff</Label>
                   </div>
-                  
+
                   {!newStaff.isInternal && (
                     <div className="flex-1 flex flex-col gap-1.5 animate-in fade-in">
                       <Label className="text-xs">College Name</Label>
@@ -219,11 +341,11 @@ export function CustomOrderDialog({ open, onOpenChange, facultyList, onFacultyCr
             )}
           </div>
         </div>
-        
+
         <DialogFooter className="border-t pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleGenerateOrder} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white" disabled={isCreatingStaff || !selectedFacultyId}>
-            <Download size={16} /> Generate Custom Order
+            <Download size={16} /> Generate Order
           </Button>
         </DialogFooter>
       </DialogContent>

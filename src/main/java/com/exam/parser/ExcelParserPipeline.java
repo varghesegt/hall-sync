@@ -122,6 +122,12 @@ public class ExcelParserPipeline {
                 String className = getCellString(row, columnMapping.get("className"));
                 String subjectName = getCellString(row, columnMapping.get("subjectName"));
                 String subjectCode = getCellString(row, columnMapping.get("subjectCode"));
+                if ((subjectCode == null || subjectCode.isBlank()) && subjectName != null && !subjectName.isBlank()) {
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b([A-Za-z]{2,6}\\s*[0-9]{3,5}[A-Za-z0-9-]*)\\b").matcher(subjectName);
+                    if (m.find()) {
+                        subjectCode = m.group(1).replaceAll("\\s+", "").toUpperCase();
+                    }
+                }
                 String semester = getCellString(row, columnMapping.get("semester"));
                 String regulation = getCellString(row, columnMapping.get("regulation"));
 

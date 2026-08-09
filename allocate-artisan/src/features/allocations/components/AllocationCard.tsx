@@ -296,9 +296,18 @@ export function AllocationCard({ sessionId, selectedRooms = [] }: AllocationCard
                           )}
                         </div>
                       ))}
-                      <p className="text-[10px] text-red-500 italic mt-1">
-                        💡 Navigate to these halls using the preview, click Edit to swap students and fix violations.
-                      </p>
+                      <div className="mt-3 p-3 bg-red-100/50 rounded-md border border-red-200">
+                        <h4 className="text-xs font-bold text-red-800 mb-2 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          Recommendations for 100% Integrity
+                        </h4>
+                        <ul className="text-[10px] text-red-700 space-y-1.5 list-disc pl-4">
+                          <li>Use the <strong>Preview Panel</strong> below to locate the flagged halls.</li>
+                          <li>Click the <strong>Edit</strong> button on a hall to manually swap students.</li>
+                          <li>Ensure no adjacent seats (horizontal or diagonal) share the same subject code.</li>
+                          <li>Avoid placing students from the same department next to each other where possible.</li>
+                        </ul>
+                      </div>
                     </div>
                   </details>
                 )}

@@ -16,14 +16,15 @@ import org.slf4j.LoggerFactory;
 public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
-
     private final AuthService authService;
+    private final com.exam.repository.master.TenantRepository tenantRepository;
 
     @org.springframework.beans.factory.annotation.Value("${app.cookie.secure:true}")
     private boolean cookieSecure;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, com.exam.repository.master.TenantRepository tenantRepository) {
         this.authService = authService;
+        this.tenantRepository = tenantRepository;
     }
 
     @PostMapping("/login")
@@ -67,6 +68,25 @@ public class AuthController {
             return ResponseEntity.ok("Password has been reset successfully.");
         } else {
             return ResponseEntity.badRequest().body("Invalid or expired reset token.");
+        }
+    }
+
+    @GetMapping("/tenants")
+    public ResponseEntity<java.util.List<java.util.Map<String, String>>> getTenants() {
+        String previousTenant = com.exam.config.tenant.TenantContext.getCurrentTenant();
+        try {
+            com.exam.config.tenant.TenantContext.clear();
+            java.util.List<java.util.Map<String, String>> tenants = tenantRepository.findAll().stream()
+                    .map(t -> java.util.Map.of(
+                            "tenantId", t.getTenantId(),
+                            "collegeName", t.getCollegeName()
+                    ))
+                    .toList();
+            return ResponseEntity.ok(tenants);
+        } finally {
+            if (previousTenant != null) {
+                com.exam.config.tenant.TenantContext.setCurrentTenant(previousTenant);
+            }
         }
     }
 }

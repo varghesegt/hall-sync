@@ -184,7 +184,7 @@ public class ExcelServiceImpl implements ExcelService {
 
     @Override
     public void generateSummaryExcel(AllocationBatch batch, List<SummaryAllocationView> summaryData, OutputStream out) {
-        ExamSession session = batch.getExamSession();
+        ExamSession session = batch != null ? batch.getExamSession() : null;
 
         // 1. Pivot Data
         // Get unique subjects (Dept + Code)
@@ -198,9 +198,9 @@ public class ExcelServiceImpl implements ExcelService {
 
         List<SubjectKey> subjects = summaryData.stream()
                 .map(s -> {
-                    String dept = s.department() != null ? s.department() : "N/A";
-                    String code = s.subjectCode() != null ? s.subjectCode() : "N/A";
-                    return new SubjectKey(dept, code.replaceAll("\\s*\\(.*?\\)", "").trim());
+                    String dept = (s.department() != null && !s.department().isBlank()) ? s.department().trim() : "N/A";
+                    String code = resolveSubjectCode(s.subjectCode(), s.subjectName());
+                    return new SubjectKey(dept, code);
                 })
                 .distinct()
                 .sorted()
@@ -215,9 +215,9 @@ public class ExcelServiceImpl implements ExcelService {
         Map<SubjectKey, Long> subjectTotals = summaryData.stream()
                 .collect(Collectors.groupingBy(
                         s -> {
-                            String dept = s.department() != null ? s.department() : "N/A";
-                            String code = s.subjectCode() != null ? s.subjectCode() : "N/A";
-                            return new SubjectKey(dept, code.replaceAll("\\s*\\(.*?\\)", "").trim());
+                            String dept = (s.department() != null && !s.department().isBlank()) ? s.department().trim() : "N/A";
+                            String code = resolveSubjectCode(s.subjectCode(), s.subjectName());
+                            return new SubjectKey(dept, code);
                         },
                         Collectors.summingLong(SummaryAllocationView::studentCount)
                 ));
@@ -238,31 +238,30 @@ public class ExcelServiceImpl implements ExcelService {
             boldStyle.setBorderRight(BorderStyle.THIN);
 
             int currentRow = 0;
+            int totalCol = subjects.size() + 2;
 
-            // --- HEADER SECTION (Lines 1-7) ---
+            // --- HEADER SECTION ---
             Row row1 = sheet.createRow(currentRow++);
-            createMergedCell(sheet, row1, 0, subjects.size() + 2, "Office of the Controller of Examinations", createHeaderStyle(workbook));
-            
+            createMergedCell(sheet, row1, 0, totalCol, "(AUTONOMOUS)", subTitleStyle);
+
             Row row2 = sheet.createRow(currentRow++);
-            createMergedCell(sheet, row2, 0, subjects.size() + 2, resolveCollegeName().toUpperCase(), titleStyle);
-            
+            createMergedCell(sheet, row2, 0, totalCol, "Count Opening", titleStyle);
+
             Row row3 = sheet.createRow(currentRow++);
-            createMergedCell(sheet, row3, 0, subjects.size() + 2, "(AUTONOMOUS)", subTitleStyle);
+            String sessionName = (session != null && session.getName() != null) ? session.getName().toUpperCase() : "SAMPLE";
+            createMergedCell(sheet, row3, 0, totalCol, sessionName + " - EXAMINATIONS", subTitleStyle);
 
             Row row4 = sheet.createRow(currentRow++);
-            createMergedCell(sheet, row4, 0, subjects.size() + 2, "Count Opening", titleStyle);
-
-            Row row5 = sheet.createRow(currentRow++);
-            String sessionName = session.getName().toUpperCase();
-            createMergedCell(sheet, row5, 0, subjects.size() + 2, sessionName + " - EXAMINATIONS", subTitleStyle);
-
-            Row row6 = sheet.createRow(currentRow++);
-            Cell dateLabel = row6.createCell(0);
-            dateLabel.setCellValue("DATE: " + session.getExamDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")));
+            String examDateStr = (session != null && session.getExamDate() != null)
+                    ? session.getExamDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+                    : "30.07.2026";
+            Cell dateLabel = row4.createCell(0);
+            dateLabel.setCellValue("DATE: " + examDateStr);
             dateLabel.setCellStyle(subTitleStyle);
 
-            Cell sessLabel = row6.createCell(2);
-            sessLabel.setCellValue(session.getSession()); // e.g. FM / AN
+            String sessionTypeStr = (session != null && session.getSession() != null) ? session.getSession() : "AN";
+            Cell sessLabel = row4.createCell(2);
+            sessLabel.setCellValue(sessionTypeStr); // e.g. FN / AN
             sessLabel.setCellStyle(subTitleStyle);
 
             currentRow++; // Spacer
@@ -272,41 +271,77 @@ public class ExcelServiceImpl implements ExcelService {
             Row codeHeaderRow = sheet.createRow(currentRow++);
             Row countHeaderRow = sheet.createRow(currentRow++);
 
-            // SL NO and HALL NO Headers
-            Cell slNoH = deptHeaderRow.createCell(0);
-            slNoH.setCellValue("SL. NO.");
-            slNoH.setCellStyle(gridHeaderStyle);
-            sheet.addMergedRegion(new CellRangeAddress(currentRow - 3, currentRow - 1, 0, 0));
+            int rStart = deptHeaderRow.getRowNum();
+            int rEnd = countHeaderRow.getRowNum();
 
-            Cell hallH = deptHeaderRow.createCell(1);
-            hallH.setCellValue("HALL NO / COUNT");
-            hallH.setCellStyle(gridHeaderStyle);
-            sheet.addMergedRegion(new CellRangeAddress(currentRow - 3, currentRow - 1, 1, 1));
+            // SL NO Header (Merged vertically across 3 rows)
+            Cell slNoH1 = deptHeaderRow.createCell(0);
+            slNoH1.setCellValue("SL. NO.");
+            slNoH1.setCellStyle(gridHeaderStyle);
+            Cell slNoH2 = codeHeaderRow.createCell(0);
+            slNoH2.setCellStyle(gridHeaderStyle);
+            Cell slNoH3 = countHeaderRow.createCell(0);
+            slNoH3.setCellStyle(gridHeaderStyle);
+            sheet.addMergedRegion(new CellRangeAddress(rStart, rEnd, 0, 0));
 
-            // Subject Headers
+            // HALL NO / CODE Header (Merged vertically across 3 rows)
+            Cell hallH1 = deptHeaderRow.createCell(1);
+            hallH1.setCellValue("HALL NO / CODE");
+            hallH1.setCellStyle(gridHeaderStyle);
+            Cell hallH2 = codeHeaderRow.createCell(1);
+            hallH2.setCellStyle(gridHeaderStyle);
+            Cell hallH3 = countHeaderRow.createCell(1);
+            hallH3.setCellStyle(gridHeaderStyle);
+            sheet.addMergedRegion(new CellRangeAddress(rStart, rEnd, 1, 1));
+
+            // Build Department Header Row & Merge Same Depts (e.g. Electives)
+            int colIndex = 2;
+            while (colIndex < totalCol) {
+                int startCol = colIndex;
+                String currentDept = subjects.get(startCol - 2).dept();
+                int endCol = startCol;
+                while (endCol + 1 < totalCol && subjects.get(endCol + 1 - 2).dept().equals(currentDept)) {
+                    endCol++;
+                }
+
+                for (int c = startCol; c <= endCol; c++) {
+                    Cell deptCell = deptHeaderRow.createCell(c);
+                    deptCell.setCellStyle(gridHeaderStyle);
+                    if (c == startCol) {
+                        deptCell.setCellValue(currentDept);
+                    }
+                }
+                if (startCol < endCol) {
+                    sheet.addMergedRegion(new CellRangeAddress(rStart, rStart, startCol, endCol));
+                }
+                colIndex = endCol + 1;
+            }
+
+            // Subject Code Row
             for (int i = 0; i < subjects.size(); i++) {
                 SubjectKey sk = subjects.get(i);
                 int col = i + 2;
-
-                Cell deptCell = deptHeaderRow.createCell(col);
-                deptCell.setCellValue(sk.dept());
-                deptCell.setCellStyle(gridHeaderStyle);
-
                 Cell codeCell = codeHeaderRow.createCell(col);
                 codeCell.setCellValue(sk.code());
                 codeCell.setCellStyle(gridHeaderStyle);
+            }
 
+            // Top Total Count Row
+            for (int i = 0; i < subjects.size(); i++) {
+                SubjectKey sk = subjects.get(i);
+                int col = i + 2;
                 Cell countCell = countHeaderRow.createCell(col);
                 countCell.setCellValue(subjectTotals.get(sk));
                 countCell.setCellStyle(boldStyle);
             }
 
-            // Total Header
-            int totalCol = subjects.size() + 2;
-            Cell totalH = deptHeaderRow.createCell(totalCol);
-            totalH.setCellValue("TOTAL");
-            totalH.setCellStyle(gridHeaderStyle);
-            sheet.addMergedRegion(new CellRangeAddress(currentRow - 3, currentRow - 2, totalCol, totalCol));
+            // TOTAL Header
+            Cell totalH1 = deptHeaderRow.createCell(totalCol);
+            totalH1.setCellValue("TOTAL");
+            totalH1.setCellStyle(gridHeaderStyle);
+            Cell totalH2 = codeHeaderRow.createCell(totalCol);
+            totalH2.setCellStyle(gridHeaderStyle);
+            sheet.addMergedRegion(new CellRangeAddress(rStart, rStart + 1, totalCol, totalCol));
 
             Cell grandTotalTop = countHeaderRow.createCell(totalCol);
             grandTotalTop.setCellValue(grandTotal);
@@ -316,7 +351,7 @@ public class ExcelServiceImpl implements ExcelService {
             int slNo = 1;
             for (String hallName : sortedHalls) {
                 Row row = sheet.createRow(currentRow++);
-                
+
                 Cell cSl = row.createCell(0);
                 cSl.setCellValue(slNo++);
                 cSl.setCellStyle(gridDataStyle);
@@ -329,9 +364,9 @@ public class ExcelServiceImpl implements ExcelService {
                 List<SummaryAllocationView> hallData = hallGroups.get(hallName);
                 Map<SubjectKey, Long> counts = hallData.stream().collect(Collectors.groupingBy(
                         s -> {
-                            String dept = s.department() != null ? s.department() : "N/A";
-                            String code = s.subjectCode() != null ? s.subjectCode() : "N/A";
-                            return new SubjectKey(dept, code.replaceAll("\\s*\\(.*?\\)", "").trim());
+                            String dept = (s.department() != null && !s.department().isBlank()) ? s.department().trim() : "N/A";
+                            String code = resolveSubjectCode(s.subjectCode(), s.subjectName());
+                            return new SubjectKey(dept, code);
                         },
                         Collectors.summingLong(SummaryAllocationView::studentCount)
                 ));
@@ -349,7 +384,7 @@ public class ExcelServiceImpl implements ExcelService {
 
                 Cell cTotal = row.createCell(totalCol);
                 cTotal.setCellValue(hallTotal);
-                cTotal.setCellStyle(gridDataStyle);
+                cTotal.setCellStyle(boldStyle);
             }
 
             // --- FOOTER ROW ---
@@ -357,7 +392,10 @@ public class ExcelServiceImpl implements ExcelService {
             Cell grandTotalLabel = footerRow.createCell(0);
             grandTotalLabel.setCellValue("Grand TOTAL");
             grandTotalLabel.setCellStyle(gridHeaderStyle);
-            sheet.addMergedRegion(new CellRangeAddress(currentRow - 1, currentRow - 1, 0, 1));
+
+            Cell emptyCol1 = footerRow.createCell(1);
+            emptyCol1.setCellStyle(gridHeaderStyle);
+            sheet.addMergedRegion(new CellRangeAddress(footerRow.getRowNum(), footerRow.getRowNum(), 0, 1));
 
             for (int i = 0; i < subjects.size(); i++) {
                 SubjectKey sk = subjects.get(i);
@@ -375,10 +413,11 @@ public class ExcelServiceImpl implements ExcelService {
             // --- SIGNATURE AREA ---
             Row sigRow = sheet.createRow(currentRow++);
             sigRow.setHeightInPoints(40);
-            Cell sigCell = sigRow.createCell(totalCol - 2);
+            int sigStartCol = Math.max(0, totalCol - 2);
+            Cell sigCell = sigRow.createCell(sigStartCol);
             sigCell.setCellValue("Signature of Chief Superintendent");
             sigCell.setCellStyle(createSignatureStyle(workbook, HorizontalAlignment.RIGHT, VerticalAlignment.BOTTOM));
-            sheet.addMergedRegion(new CellRangeAddress(currentRow - 1, currentRow - 1, totalCol - 2, totalCol));
+            sheet.addMergedRegion(new CellRangeAddress(sigRow.getRowNum(), sigRow.getRowNum(), sigStartCol, totalCol));
 
             // Auto-size columns
             for (int i = 0; i <= totalCol; i++) {
@@ -543,5 +582,31 @@ public class ExcelServiceImpl implements ExcelService {
             return cachedName;
         }
         return "EXAM SEATING ALLOCATION SYSTEM";
+    }
+
+    private String resolveSubjectCode(String subjectCode, String subjectName) {
+        if (subjectCode != null && !subjectCode.isBlank() && !"N/A".equalsIgnoreCase(subjectCode.trim())) {
+            return subjectCode.replaceAll("\\s*\\(.*?\\)", "").trim();
+        }
+        if (subjectName != null && !subjectName.isBlank()) {
+            String trimmedName = subjectName.trim();
+            // Try extracting code pattern like CS3501, AD3351, EC8551, GE3151, MA3151 etc.
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\b([A-Za-z]{2,6}\\s*[0-9]{3,5}[A-Za-z0-9-]*)\\b");
+            java.util.regex.Matcher m = p.matcher(trimmedName);
+            if (m.find()) {
+                return m.group(1).replaceAll("\\s+", "").toUpperCase();
+            }
+            if (trimmedName.contains("-")) {
+                String[] parts = trimmedName.split("-");
+                for (String part : parts) {
+                    java.util.regex.Matcher m2 = p.matcher(part.trim());
+                    if (m2.find()) {
+                        return m2.group(1).replaceAll("\\s+", "").toUpperCase();
+                    }
+                }
+            }
+            return trimmedName;
+        }
+        return "N/A";
     }
 }

@@ -138,6 +138,21 @@ export default function FacultyManagement() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (facultyList.length === 0) {
+      toast.info("No faculty members to delete.");
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete ALL ${facultyList.length} faculty members?`)) return;
+    try {
+      await facultyApi.deleteAll();
+      toast.success("All faculty members deleted successfully");
+      fetchFaculty();
+    } catch (error) {
+      toast.error("Failed to delete all faculty members");
+    }
+  };
+
   const handleToggleAvailability = async (id: string, currentStatus: boolean | undefined) => {
     try {
       const isAvailable = currentStatus === undefined ? false : !currentStatus;
@@ -179,7 +194,7 @@ export default function FacultyManagement() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">
             Faculty Management
           </h1>
-          <p className="text-slate-500 mt-1">
+          <p className="text-sm font-medium text-slate-500 mt-1">
             Manage invigilators, add new faculty, or bulk import from Excel.
           </p>
         </div>
@@ -220,6 +235,15 @@ export default function FacultyManagement() {
             </DialogContent>
           </Dialog>
 
+          <Button
+            variant="outline"
+            className="gap-2 text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 shadow-sm"
+            onClick={handleDeleteAll}
+            disabled={facultyList.length === 0}
+          >
+            <Trash2 size={16} /> Delete All Staffs
+          </Button>
+
           <Dialog open={isAddOpen} onOpenChange={(open) => {
               setIsAddOpen(open);
               if (!open) {
@@ -228,7 +252,7 @@ export default function FacultyManagement() {
               }
             }}>
             <DialogTrigger asChild>
-              <Button className="gap-2" onClick={() => {
+              <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" onClick={() => {
                 setEditingId(null);
                 setFormData({ name: "", employeeId: "", department: "", designation: "", phone: "", email: "", isInternal: true, isAvailable: true, collegeName: "" });
               }}>
@@ -337,7 +361,7 @@ export default function FacultyManagement() {
                    />
                    <Label className="font-medium">Currently Available for Exam Duties</Label>
                 </div>
-                <Button type="submit" className="mt-4">
+                <Button type="submit" className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white">
                   Save Faculty
                 </Button>
               </form>
@@ -346,19 +370,19 @@ export default function FacultyManagement() {
         </div>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b bg-slate-50/50 flex items-center justify-between">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between">
           <div className="relative w-full max-w-sm flex items-center">
-            <Search className="absolute left-3 text-slate-400" size={18} />
+            <Search className="absolute left-3 text-slate-400" size={16} />
             <Input
               placeholder="Search by name, ID, or dept..."
-              className="pl-10"
+              className="pl-10 h-9 bg-slate-50 border-slate-200 focus-visible:ring-indigo-500"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="text-sm text-slate-500 font-medium">
-            Total Active: {facultyList.length}
+          <div className="text-xs font-bold text-slate-500 tracking-wider uppercase">
+            Total Active: <span className="text-slate-900">{facultyList.length}</span>
           </div>
         </div>
 
@@ -439,7 +463,7 @@ export default function FacultyManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                          className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 h-8 w-8"
                           onClick={() => handleEdit(faculty)}
                         >
                           <Edit size={16} />
@@ -447,7 +471,7 @@ export default function FacultyManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 h-8 w-8"
                           onClick={() => handleDelete(faculty.id)}
                         >
                           <Trash2 size={16} />

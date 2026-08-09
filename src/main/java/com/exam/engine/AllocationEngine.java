@@ -50,16 +50,21 @@ public class AllocationEngine {
 
             if (hallStudents.isEmpty()) continue;
 
-            AllocationConstraintSolver.SolverResult solverResult = solver.allocateHall(hallId, hallStudents, pattern, request.positionHistory(), request.seasonSessionIndex());
+            // Retrieve the full hall object to get rows and cols
+            Hall currentHall = request.halls().stream()
+                .filter(h -> h.id().equals(hallId))
+                .findFirst().orElse(new Hall(hallId, 25, 5, 5));
+
+            AllocationConstraintSolver.SolverResult solverResult = solver.allocateHall(
+                hallId, hallStudents, pattern, request.positionHistory(), request.seasonSessionIndex(),
+                currentHall.rows(), currentHall.cols()
+            );
             
             allAssignments.addAll(solverResult.assignments());
             allViolations.addAll(solverResult.violations());
             
             utilizedHalls++;
-            totalCapacity += request.halls().stream()
-                .filter(h -> h.id().equals(hallId))
-                .map(h -> h.capacity())
-                .findFirst().orElse(25);
+            totalCapacity += currentHall.capacity();
 
             String reason = optimized.reasoning().get(hallId);
             logger.debug("[EXPLAINABILITY] {}: {}", hallId, reason);
@@ -99,28 +104,39 @@ public class AllocationEngine {
                 boolean placed = false;
 
                 // Find the hall with the MOST empty seats (prioritize under-filled halls)
-                String bestHall = null;
+                String bestHallId = null;
                 int maxEmpty = 0;
+                Hall bestHallObj = null;
+
                 for (Map.Entry<String, Set<String>> e : occupiedSeats.entrySet()) {
-                    int hallCapacity = request.halls().stream()
+                    Hall hallObj = request.halls().stream()
                         .filter(h -> h.id().equals(e.getKey()))
-                        .map(h -> h.capacity())
-                        .findFirst().orElse(25);
-                    int empty = hallCapacity - e.getValue().size();
+                        .findFirst().orElse(new Hall(e.getKey(), 25, 5, 5));
+                    
+                    int empty = hallObj.capacity() - e.getValue().size();
                     if (empty > maxEmpty) {
                         maxEmpty = empty;
-                        bestHall = e.getKey();
+                        bestHallId = e.getKey();
+                        bestHallObj = hallObj;
                     }
                 }
 
-                if (bestHall != null && maxEmpty > 0) {
-                    Set<String> seats = occupiedSeats.get(bestHall);
-                    for (int row = 1; row <= 5 && !placed; row++) {
-                        for (String col : COL_NAMES) {
+                if (bestHallId != null && maxEmpty > 0 && bestHallObj != null) {
+                    Set<String> seats = occupiedSeats.get(bestHallId);
+                    
+                    // Generate column names dynamically based on the hall's configured columns
+                    String[] ROMAN = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+                    String[] colNames = new String[bestHallObj.cols()];
+                    for (int i = 0; i < bestHallObj.cols(); i++) {
+                        colNames[i] = i < ROMAN.length ? ROMAN[i] : String.valueOf(i + 1);
+                    }
+
+                    for (int row = 1; row <= bestHallObj.rows() && !placed; row++) {
+                        for (String col : colNames) {
                             String seatKey = row + ":" + col;
                             if (!seats.contains(seatKey)) {
                                 allAssignments.add(new SeatAssignment(
-                                        s.registerNumber(), bestHall, row, col,
+                                        s.registerNumber(), bestHallId, row, col,
                                         s.subjectCode(), s.department(),
                                         s.semester(), s.regulation(), 0
                                 ));

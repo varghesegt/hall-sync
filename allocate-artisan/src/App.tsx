@@ -26,6 +26,7 @@ const NotFound = React.lazy(() => import("./features/core/pages/NotFound.tsx"));
 const InternalDashboard = React.lazy(() => import("./features/allocations/pages/InternalDashboard.tsx"));
 const FacultyManagement = React.lazy(() => import("./features/allocations/pages/FacultyManagement.tsx"));
 const DutyAllocation = React.lazy(() => import("./features/allocations/pages/DutyAllocation.tsx"));
+const InternalDutyAllocation = React.lazy(() => import("./features/allocations/pages/InternalDutyAllocation.tsx"));
 const FloorPlanEditor = React.lazy(() => import("./features/allocations/pages/FloorPlanEditor.tsx"));
 const FloorPlanSelect = React.lazy(() => import("./features/allocations/pages/FloorPlanSelect.tsx"));
 const AppointmentOrders = React.lazy(() => import("./features/allocations/pages/AppointmentOrders.tsx"));
@@ -33,6 +34,7 @@ const AppointmentOrders = React.lazy(() => import("./features/allocations/pages/
 // Claims Domain
 const ClaimsDashboard = React.lazy(() => import("./features/claims/pages/ClaimsDashboard.tsx"));
 const ClaimsList = React.lazy(() => import("./features/claims/pages/ClaimsList.tsx"));
+const LabClaimsDashboard = React.lazy(() => import("./features/claims/pages/LabClaimsDashboard.tsx"));
 const CollegeDistanceDB = React.lazy(() => import("./features/claims/pages/CollegeDistanceDB.tsx"));
 
 // Analytics & Admin Domain
@@ -122,11 +124,13 @@ const App = () => (
             <Route path="faculty" element={<FacultyManagement />} />
             <Route path="malpractice" element={<MalpracticeTracker />} />
             <Route path="duty" element={<DutyAllocation />} />
+            <Route path="internal-duty" element={<InternalDutyAllocation />} />
             <Route path="appointments" element={<AppointmentOrders />} />
             <Route path="reports" element={<AccreditationReports />} />
             <Route path="settings" element={<Settings />} />
             <Route path="claims" element={<ClaimsDashboard />} />
             <Route path="claims/:id" element={<ClaimsList />} />
+            <Route path="lab-claims" element={<LabClaimsDashboard />} />
             <Route path="colleges" element={<CollegeDistanceDB />} />
             
             <Route path="command-center" element={<CommandCenter />} />

@@ -57,7 +57,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-
+    out-of-order: true
   sql:
     init:
       mode: always

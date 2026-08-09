@@ -57,23 +57,31 @@ public class InternalGlobalOptimizer {
         // 6 columns per hall = 40 seats (7,7,7,7,6,6)
         // =============================================
         while (hallIndex < sortedHalls.size()) {
-            List<DeptBudget> fullDepts = getDeptsWithFullColumns(deptQueues);
+            Hall hall = sortedHalls.get(hallIndex);
+            int maxCols = hall.cols();
+            int maxRows = hall.rows();
+            int maxCapacity = hall.capacity();
+
+            List<DeptBudget> fullDepts = getDeptsWithFullColumns(deptQueues, maxRows - 1); // internal usually has slightly uneven columns
             fullDepts = reorderForSubjectDiversity(fullDepts, deptQueues);
 
-            // Need at least 21 students (3 columns) to justify a hall in Phase A
+            int minColsNeeded = (int) Math.ceil((double) maxCols / 2.0);
             int totalAvailable = fullDepts.stream().mapToInt(d -> d.students).sum();
-            if (totalAvailable < 21) break;
+            if (totalAvailable < (minColsNeeded * maxRows - 2)) break;
 
             // Strict Rotation
-            List<Student> peekStudents = peekPotentialStudents(deptQueues, fullDepts);
+            List<Student> peekStudents = peekPotentialStudents(deptQueues, fullDepts, maxRows);
             int bestHallIdx = findBestNonConflictingHall(hallIndex, sortedHalls, peekStudents, seasonHistory);
             if (bestHallIdx != hallIndex) {
                 Hall chosen = sortedHalls.remove(bestHallIdx);
                 sortedHalls.add(hallIndex, chosen);
+                hall = chosen;
+                maxCols = hall.cols();
+                maxRows = hall.rows();
+                maxCapacity = hall.capacity();
                 rotationWarnings.add("Rotated hall " + chosen.id() + " to avoid repeat assignment.");
             }
 
-            Hall hall = sortedHalls.get(hallIndex);
             List<Student> hallStudents = new ArrayList<>();
             List<String> patternList = new ArrayList<>();
             StringBuilder rationale = new StringBuilder();
@@ -82,45 +90,35 @@ public class InternalGlobalOptimizer {
                 DeptBudget top1 = fullDepts.get(0);
                 DeptBudget top2 = fullDepts.get(1);
 
-                if (top1.students >= 20 && top2.students >= 20) {
-                    // ABABAB (20:20 = 40) — BEST CASE (3 cols A, 3 cols B)
-                    fillExact(deptQueues, top1.dept, 20, hallStudents, patternList, 3);
-                    fillExact(deptQueues, top2.dept, 20, hallStudents, patternList, 3);
-                    rationale.append("20:20 ABABAB [").append(top1.dept).append("/").append(top2.dept).append("]");
+                int halfCapacity = maxCapacity / 2;
+                int cols1 = (int) Math.ceil((double) maxCols / 2.0);
+                int cols2 = maxCols - cols1;
 
-                } else if (top1.students >= 20 && top2.students >= 14 && fullDepts.size() >= 3 && fullDepts.get(2).students >= 6) {
-                    // ABACBA (20:14:6 = 40)
+                if (top1.students >= halfCapacity && top2.students >= halfCapacity) {
+                    // ABABAB 
+                    fillExact(deptQueues, top1.dept, halfCapacity, hallStudents, patternList, cols1);
+                    fillExact(deptQueues, top2.dept, halfCapacity, hallStudents, patternList, cols2);
+                    rationale.append(halfCapacity).append(":").append(halfCapacity).append(" ABABAB [").append(top1.dept).append("/").append(top2.dept).append("]");
+                } else if (top1.students >= halfCapacity && top2.students >= (halfCapacity / 2) && fullDepts.size() >= 3 && fullDepts.get(2).students >= (halfCapacity / 2)) {
+                    // ABACBA 
                     DeptBudget top3 = fullDepts.get(2);
-                    fillExact(deptQueues, top1.dept, 20, hallStudents, patternList, 3);
-                    fillExact(deptQueues, top2.dept, 14, hallStudents, patternList, 2);
-                    fillExact(deptQueues, top3.dept, 6, hallStudents, patternList, 1);
-                    rationale.append("20:14:6 ABACBA [").append(top1.dept).append("/").append(top2.dept).append("/").append(top3.dept).append("]");
-
-                } else if (top1.students >= 14 && top2.students >= 14 && fullDepts.size() >= 3 && fullDepts.get(2).students >= 12) {
-                    // ABACBC (14:14:12 = 40)
-                    DeptBudget top3 = fullDepts.get(2);
-                    fillExact(deptQueues, top1.dept, 14, hallStudents, patternList, 2);
-                    fillExact(deptQueues, top2.dept, 14, hallStudents, patternList, 2);
-                    fillExact(deptQueues, top3.dept, 12, hallStudents, patternList, 2);
-                    rationale.append("14:14:12 ABACBC [").append(top1.dept).append("/").append(top2.dept).append("/").append(top3.dept).append("]");
-
-                } else if (top1.students >= 21 && top2.students >= 14) {
-                    // ABABA (21:14 = 35)
-                    fillExact(deptQueues, top1.dept, 21, hallStudents, patternList, 3);
-                    fillExact(deptQueues, top2.dept, 14, hallStudents, patternList, 2);
-                    rationale.append("21:14 ABABA [").append(top1.dept).append("/").append(top2.dept).append("]");
-                } else if (top1.students >= 14 && top2.students >= 14) {
-                    // ABAB (14:14 = 28)
-                    fillExact(deptQueues, top1.dept, 14, hallStudents, patternList, 2);
-                    fillExact(deptQueues, top2.dept, 14, hallStudents, patternList, 2);
-                    rationale.append("14:14 ABAB [").append(top1.dept).append("/").append(top2.dept).append("]");
+                    int third = halfCapacity / 2;
+                    fillExact(deptQueues, top1.dept, halfCapacity, hallStudents, patternList, cols1);
+                    fillExact(deptQueues, top2.dept, third, hallStudents, patternList, cols2 / 2);
+                    fillExact(deptQueues, top3.dept, third, hallStudents, patternList, cols2 - (cols2 / 2));
+                    rationale.append(halfCapacity).append(":").append(third).append(":").append(third).append(" ABACBA [").append(top1.dept).append("/").append(top2.dept).append("/").append(top3.dept).append("]");
+                } else if (top1.students >= (halfCapacity / 2 + 5) && top2.students >= (halfCapacity / 2 + 5)) {
+                    int amount = halfCapacity / 2 + 5;
+                    fillExact(deptQueues, top1.dept, amount, hallStudents, patternList, cols1 - 1);
+                    fillExact(deptQueues, top2.dept, amount, hallStudents, patternList, cols2);
+                    rationale.append(amount).append(":").append(amount).append(" ABAB [").append(top1.dept).append("/").append(top2.dept).append("]");
                 } else {
                     break;
                 }
             } else if (fullDepts.size() == 1) {
                 DeptBudget top1 = fullDepts.get(0);
-                int take = Math.min(MAX_STUDENTS, top1.students);
-                int cols = (int) Math.ceil((double) take / 7);
+                int take = Math.min(maxCapacity, top1.students);
+                int cols = (int) Math.ceil((double) take / maxRows);
                 fillExact(deptQueues, top1.dept, take, hallStudents, patternList, cols);
                 rationale.append("Single-dept ").append(take).append(" students [").append(top1.dept).append("]");
             } else {
@@ -130,7 +128,7 @@ public class InternalGlobalOptimizer {
             String[] finalPattern = interleavePattern(patternList);
 
             if (!hallStudents.isEmpty()) {
-                List<Student> reorderedStudents = reorderStudents(hallStudents, patternList, finalPattern);
+                List<Student> reorderedStudents = reorderStudents(hallStudents, patternList, finalPattern, maxRows);
                 assignments.put(hall.id(), reorderedStudents);
                 patterns.put(hall.id(), finalPattern);
                 reasoning.put(hall.id(), rationale + "; Students: " + hallStudents.size());
@@ -154,7 +152,17 @@ public class InternalGlobalOptimizer {
             remainderPool = interleaveRemainderBySubject(remainderPool);
 
             int remainderCount = remainderPool.size();
-            int hallsNeeded = (int) Math.ceil((double) remainderCount / MAX_STUDENTS);
+            
+            // Estimate halls needed based on full capacity
+            int hallsNeeded = 1;
+            int currentEstim = 0;
+            for (int i = hallIndex; i < sortedHalls.size(); i++) {
+                currentEstim += sortedHalls.get(i).capacity();
+                if (currentEstim >= remainderCount) {
+                    hallsNeeded = i - hallIndex + 1;
+                    break;
+                }
+            }
             int availableHalls = sortedHalls.size() - hallIndex;
             hallsNeeded = Math.min(hallsNeeded, availableHalls);
             if (hallsNeeded == 0) hallsNeeded = 1;
@@ -172,10 +180,15 @@ public class InternalGlobalOptimizer {
 
                 Hall hall = sortedHalls.get(hallIndex);
                 int end = Math.min(offset + perHall, remainderPool.size());
+                
+                if (end - offset > hall.capacity()) {
+                    end = offset + hall.capacity();
+                }
+
                 List<Student> hallStudents = new ArrayList<>(remainderPool.subList(offset, end));
 
-                String[] autoPattern = generatePatternFromStudents(hallStudents);
-                List<Student> reorderedStudents = reorderStudents(hallStudents, null, autoPattern);
+                String[] autoPattern = generatePatternFromStudents(hallStudents, hall.cols(), hall.rows());
+                List<Student> reorderedStudents = reorderStudents(hallStudents, null, autoPattern, hall.rows());
 
                 assignments.put(hall.id(), reorderedStudents);
                 patterns.put(hall.id(), autoPattern);
@@ -203,11 +216,13 @@ public class InternalGlobalOptimizer {
                 String[] targetPattern = patterns.get(targetHallId);
 
                 if (targetStudents == null) continue;
+                
+                Hall targetHall = sortedHalls.stream().filter(h -> h.id().equals(targetHallId)).findFirst().orElse(new Hall(targetHallId, 40, 7, 6));
 
                 int combinedCount = targetStudents.size() + currentStudents.size();
                 int combinedCols = targetPattern.length + currentPattern.length;
 
-                if (combinedCount <= 25 && combinedCols <= 5) {
+                if (combinedCount <= targetHall.capacity() && combinedCols <= targetHall.cols()) {
                     logger.debug("[INTERNAL-OPTIMIZER] Consolidating {} into {}", currentHallId, targetHallId);
 
                     List<String> combinedPatternList = new ArrayList<>();
@@ -219,7 +234,7 @@ public class InternalGlobalOptimizer {
                     combinedStudents.addAll(currentStudents);
 
                     String[] newInterleavedPattern = interleavePattern(combinedPatternList);
-                    List<Student> reorderedStudents = reorderStudents(combinedStudents, combinedPatternList, newInterleavedPattern);
+                    List<Student> reorderedStudents = reorderStudents(combinedStudents, combinedPatternList, newInterleavedPattern, targetHall.rows());
 
                     assignments.put(targetHallId, reorderedStudents);
                     patterns.put(targetHallId, newInterleavedPattern);
@@ -264,18 +279,18 @@ public class InternalGlobalOptimizer {
         return bestIdx;
     }
 
-    private List<Student> peekPotentialStudents(Map<String, Queue<Student>> queues, List<DeptBudget> fullDepts) {
+    private List<Student> peekPotentialStudents(Map<String, Queue<Student>> queues, List<DeptBudget> fullDepts, int maxRows) {
         List<Student> peek = new ArrayList<>();
         if (fullDepts.size() >= 2) {
             DeptBudget top1 = fullDepts.get(0);
             DeptBudget top2 = fullDepts.get(1);
             Queue<Student> q1 = queues.get(top1.dept);
             Queue<Student> q2 = queues.get(top2.dept);
-            if (q1 != null) peek.addAll(q1.stream().limit(20).toList());
-            if (q2 != null) peek.addAll(q2.stream().limit(20).toList());
+            if (q1 != null) peek.addAll(q1.stream().limit(maxRows * 3).toList());
+            if (q2 != null) peek.addAll(q2.stream().limit(maxRows * 3).toList());
         } else if (fullDepts.size() == 1) {
             Queue<Student> q = queues.get(fullDepts.get(0).dept);
-            if (q != null) peek.addAll(q.stream().limit(MAX_STUDENTS).toList());
+            if (q != null) peek.addAll(q.stream().limit(maxRows * 6).toList());
         }
         return peek;
     }
@@ -302,9 +317,9 @@ public class InternalGlobalOptimizer {
                 .orElse(null);
     }
 
-    private List<DeptBudget> getDeptsWithFullColumns(Map<String, Queue<Student>> queues) {
+    private List<DeptBudget> getDeptsWithFullColumns(Map<String, Queue<Student>> queues, int maxRowsForInternalCol) {
         return queues.entrySet().stream()
-                .filter(e -> e.getValue().size() >= 6) // Minimum viable column for internal
+                .filter(e -> e.getValue().size() >= maxRowsForInternalCol) 
                 .sorted((a, b) -> Integer.compare(b.getValue().size(), a.getValue().size()))
                 .map(e -> new DeptBudget(e.getKey(), e.getValue().size()))
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -387,19 +402,18 @@ public class InternalGlobalOptimizer {
         return result;
     }
 
-    private List<Student> reorderStudents(List<Student> students, List<String> originalPattern, String[] interleavedPattern) {
+    private List<Student> reorderStudents(List<Student> students, List<String> originalPattern, String[] interleavedPattern, int maxRows) {
         Map<String, Queue<Student>> byDept = new LinkedHashMap<>();
         for (Student s : students) {
             byDept.computeIfAbsent(s.department(), k -> new LinkedList<>()).add(s);
         }
 
         List<Student> reordered = new ArrayList<>();
-        int[] deptPollCounts = new int[interleavedPattern.length];
         
         for (int i = 0; i < interleavedPattern.length; i++) {
             String dept = interleavedPattern[i];
             Queue<Student> q = byDept.get(dept);
-            int capacity = (i < COL_CAPACITIES.length) ? COL_CAPACITIES[i] : 6;
+            int capacity = maxRows;
             
             if (q != null) {
                 for (int j = 0; j < capacity && !q.isEmpty(); j++) {
@@ -415,7 +429,7 @@ public class InternalGlobalOptimizer {
         return reordered;
     }
 
-    private String[] generatePatternFromStudents(List<Student> students) {
+    private String[] generatePatternFromStudents(List<Student> students, int maxCols, int maxRows) {
         Map<String, Long> counts = students.stream()
                 .collect(Collectors.groupingBy(Student::department, Collectors.counting()));
         List<String> depts = counts.entrySet().stream()
@@ -425,11 +439,11 @@ public class InternalGlobalOptimizer {
 
         List<String> pattern = new ArrayList<>();
         for (String dept : depts) {
-            int cols = (int) Math.ceil((double) counts.get(dept) / 7);
+            int cols = (int) Math.ceil((double) counts.get(dept) / maxRows);
             for (int i = 0; i < cols; i++) pattern.add(dept);
         }
 
-        if (pattern.size() > COLS) pattern = pattern.subList(0, COLS);
+        if (pattern.size() > maxCols) pattern = pattern.subList(0, maxCols);
         if (pattern.isEmpty()) pattern.add("UNKNOWN");
 
         pattern = applySubjectDiversityToPattern(pattern, students);

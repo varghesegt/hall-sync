@@ -104,7 +104,11 @@ public class InternalAllocationTxService {
                 .collect(Collectors.toList());
 
         List<com.exam.engine.model.Hall> engineHalls = halls.stream()
-                .map(h -> new com.exam.engine.model.Hall(h.getId(), (h.getInternalCapacity() != null ? h.getInternalCapacity() : 40) + 2)) // Add 2 for the 42 seat grid
+                .map(h -> new com.exam.engine.model.Hall(h.getId(), 
+                    (h.getInternalCapacity() != null ? h.getInternalCapacity() : 40), 
+                    (h.getInternalRows() != null ? h.getInternalRows() : 7),
+                    (h.getInternalCols() != null ? h.getInternalCols() : 6)
+                ))
                 .collect(Collectors.toList());
 
         AllocationRequest request = new AllocationRequest(engineStudents, engineHalls, seasonHistory, positionHistory, seasonSessionIndex, examSessionId.toString());

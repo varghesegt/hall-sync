@@ -6,11 +6,13 @@ import com.exam.repository.*;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xwpf.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -88,9 +90,29 @@ public class InvigilatorDutyService {
         dutyRepository.deleteByBatchId(batchId);
         dutyRepository.flush();
 
-        // Run the engine
+        // Count student strength per department for proportional duty allocation
+        Map<String, Integer> deptStudentCounts = new HashMap<>();
+        for (Allocation alloc : allocations) {
+            String normDept = InvigilatorAllocationEngine.normalizeDept(alloc.getStudent().getDepartment());
+            deptStudentCounts.merge(normDept, 1, Integer::sum);
+        }
+
+        // Track previously assigned halls for each faculty member in current CIA/month for Staff Hall Rotation
+        Map<UUID, Set<String>> facultyPreviousHalls = new HashMap<>();
+        for (Faculty f : availableFaculty) {
+            Set<String> prevHalls = new HashSet<>();
+            List<InvigilatorDuty> pastDuties = dutyRepository.findByFacultyId(f.getId());
+            for (InvigilatorDuty d : pastDuties) {
+                if (d.getHall() != null && d.getHall().getId() != null) {
+                    prevHalls.add(d.getHall().getId());
+                }
+            }
+            facultyPreviousHalls.put(f.getId(), prevHalls);
+        }
+
+        // Run the engine with student strength ratios, supporting dept caps, max CIA caps, and Staff Hall Rotation
         InvigilatorAllocationEngine.AllocationResult result =
-                engine.allocate(availableFaculty, hallDepts, existingDutyCount, sameDayAssigned);
+                engine.allocate(availableFaculty, hallDepts, existingDutyCount, sameDayAssigned, deptStudentCounts, facultyPreviousHalls);
 
         // Persist assignments
         List<InvigilatorDuty> duties = new ArrayList<>();
@@ -231,5 +253,192 @@ public class InvigilatorDutyService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate duty Excel", e);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generateDutyWord(UUID batchId) {
+        List<InvigilatorDuty> duties = dutyRepository.findByBatchIdOrderByHallIdAsc(batchId);
+        if (duties.isEmpty()) {
+            throw new IllegalStateException("No duties found for batch: " + batchId);
+        }
+
+        AllocationBatch batch = duties.get(0).getBatch();
+        ExamSession session = batch.getExamSession();
+
+        String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
+        String collegeName = com.exam.config.tenant.TenantContext.getCollegeName(tenantId);
+        if (collegeName == null) collegeName = "K.RAMAKRISHNAN COLLEGE OF ENGINEERING";
+
+        try (XWPFDocument doc = new XWPFDocument(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+
+            org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr sectPr = doc.getDocument().getBody().addNewSectPr();
+            org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageMar pageMar = sectPr.addNewPgMar();
+            pageMar.setTop(java.math.BigInteger.valueOf(720));
+            pageMar.setBottom(java.math.BigInteger.valueOf(720));
+            pageMar.setLeft(java.math.BigInteger.valueOf(720));
+            pageMar.setRight(java.math.BigInteger.valueOf(720));
+
+            XWPFTable headerTable = doc.createTable(1, 2);
+            headerTable.setWidth("100%");
+            headerTable.removeBorders();
+
+            headerTable.getRow(0).getCell(0).getCTTc().addNewTcPr().addNewTcW().setW(java.math.BigInteger.valueOf(1800));
+            headerTable.getRow(0).getCell(1).getCTTc().addNewTcPr().addNewTcW().setW(java.math.BigInteger.valueOf(8200));
+
+            XWPFTableCell logoCell = headerTable.getRow(0).getCell(0);
+            logoCell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
+            XWPFParagraph logoPara = logoCell.getParagraphs().get(0);
+            logoPara.setAlignment(ParagraphAlignment.CENTER);
+            try (java.io.InputStream is = getClass().getResourceAsStream("/logo1.png")) {
+                if (is != null) {
+                    byte[] logoBytes = is.readAllBytes();
+                    logoPara.createRun().addPicture(new java.io.ByteArrayInputStream(logoBytes),
+                            Document.PICTURE_TYPE_PNG, "logo1.png",
+                            org.apache.poi.util.Units.toEMU(90), org.apache.poi.util.Units.toEMU(90));
+                }
+            } catch (Exception e) {
+                logger.warn("Could not insert logo into Duty Word", e);
+            }
+
+            XWPFTableCell titleCell = headerTable.getRow(0).getCell(1);
+            titleCell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
+            XWPFParagraph titlePara = titleCell.getParagraphs().get(0);
+            titlePara.setAlignment(ParagraphAlignment.CENTER);
+
+            XWPFRun officeRun = titlePara.createRun();
+            officeRun.setText("Office of the Controller of Examinations\n");
+            officeRun.setFontSize(15);
+            officeRun.setBold(true);
+            officeRun.setFontFamily("Times New Roman");
+
+            XWPFRun collegeRun = titlePara.createRun();
+            collegeRun.setText(collegeName + "\n");
+            collegeRun.setFontSize(13);
+            collegeRun.setBold(true);
+            collegeRun.setFontFamily("Times New Roman");
+
+            XWPFRun autoRun = titlePara.createRun();
+            autoRun.setText("(AUTONOMOUS)\n");
+            autoRun.setFontSize(10);
+            autoRun.setBold(true);
+            autoRun.setFontFamily("Times New Roman");
+
+            XWPFRun titleRun = titlePara.createRun();
+            titleRun.setText("INTERNAL ASSESSMENT / END SEMESTER EXAMINATIONS\nDUTY ALLOCATION CHART");
+            titleRun.setFontSize(12);
+            titleRun.setBold(true);
+            titleRun.setUnderline(UnderlinePatterns.SINGLE);
+            titleRun.setFontFamily("Times New Roman");
+
+            XWPFParagraph line = doc.createParagraph();
+            line.setBorderBottom(Borders.SINGLE);
+            line.setSpacingAfter(100);
+
+            XWPFParagraph metaPara = doc.createParagraph();
+            metaPara.setSpacingAfter(100);
+            XWPFRun dateRun = metaPara.createRun();
+            dateRun.setText("Date: " + session.getExamDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) + "    |    Session: " + session.getSession() + "    |    Total Invigilators: " + duties.size());
+            dateRun.setBold(true);
+            dateRun.setFontSize(11);
+            dateRun.setFontFamily("Times New Roman");
+
+            XWPFTable dutyTable = doc.createTable(duties.size() + 1, 7);
+            dutyTable.setWidth("100%");
+
+            String[] headers = {"S.No", "Faculty Name", "Desig.", "Dept.", "Hall Allocated", "Duty Type", "Signature"};
+            for (int i = 0; i < headers.length; i++) {
+                setTableCell(dutyTable.getRow(0).getCell(i), headers[i], true, ParagraphAlignment.CENTER);
+            }
+
+            int sno = 1;
+            for (InvigilatorDuty d : duties) {
+                XWPFTableRow r = dutyTable.getRow(sno);
+                setTableCell(r.getCell(0), String.valueOf(sno), false, ParagraphAlignment.CENTER);
+                setTableCell(r.getCell(1), d.getFaculty().getName(), true, ParagraphAlignment.LEFT);
+                setTableCell(r.getCell(2), d.getFaculty().getDesignation() != null ? d.getFaculty().getDesignation() : "Asst.Prof", false, ParagraphAlignment.CENTER);
+                setTableCell(r.getCell(3), d.getFaculty().getDepartment(), false, ParagraphAlignment.CENTER);
+                setTableCell(r.getCell(4), d.getHall().getName(), true, ParagraphAlignment.CENTER);
+                setTableCell(r.getCell(5), d.getDutyType(), false, ParagraphAlignment.CENTER);
+                setTableCell(r.getCell(6), "", false, ParagraphAlignment.LEFT);
+                sno++;
+            }
+
+            XWPFParagraph instHeader = doc.createParagraph();
+            instHeader.setSpacingBefore(150);
+            instHeader.setSpacingAfter(40);
+            XWPFRun instTitle = instHeader.createRun();
+            instTitle.setText("Instructions to Invigilators:");
+            instTitle.setBold(true);
+            instTitle.setUnderline(UnderlinePatterns.SINGLE);
+            instTitle.setFontSize(10.5);
+
+            String[] instructions = {
+                "1. Invigilators must report to the COE / Exam Cell 20 minutes before commencement of examination.",
+                "2. Mobile phones, smart watches, and unauthorized materials are strictly prohibited inside examination halls.",
+                "3. Verify student hall tickets, register numbers, and answer booklet seals prior to distribution.",
+                "4. Ensure strict silence and report any malpractice immediately to the Chief Superintendent / Squad."
+            };
+
+            for (String inst : instructions) {
+                XWPFParagraph ip = doc.createParagraph();
+                ip.setSpacingBefore(20);
+                ip.setSpacingAfter(20);
+                XWPFRun ir = ip.createRun();
+                ir.setText(inst);
+                ir.setFontSize(9.5);
+                ir.setFontFamily("Times New Roman");
+            }
+
+            XWPFParagraph sigPara = doc.createParagraph();
+            sigPara.setSpacingBefore(300);
+            sigPara.setAlignment(ParagraphAlignment.RIGHT);
+            XWPFRun sigRun = sigPara.createRun();
+            sigRun.setText("CONTROLLER OF EXAMINATIONS / PRINCIPAL");
+            sigRun.setBold(true);
+            sigRun.setFontSize(11);
+            sigRun.setFontFamily("Times New Roman");
+
+            doc.write(baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate duty Word document", e);
+        }
+    }
+
+    private void setTableCell(XWPFTableCell cell, String text, boolean bold, ParagraphAlignment align) {
+        XWPFParagraph p = cell.getParagraphs().get(0);
+        p.setAlignment(align);
+        p.setSpacingBefore(30);
+        p.setSpacingAfter(30);
+        XWPFRun r = p.createRun();
+        r.setText(text);
+        r.setBold(bold);
+        r.setFontSize(10);
+        r.setFontFamily("Times New Roman");
+    }
+
+    @Transactional
+    public void swapDuty(UUID dutyId, UUID newFacultyId) {
+        InvigilatorDuty duty = dutyRepository.findById(dutyId)
+                .orElseThrow(() -> new IllegalArgumentException("Duty not found: " + dutyId));
+
+        Faculty newFaculty = facultyRepository.findById(newFacultyId)
+                .orElseThrow(() -> new IllegalArgumentException("Faculty not found: " + newFacultyId));
+
+        // EDGE CASE 5: Department Isolation Validation on Swap
+        List<Allocation> allocs = allocationRepository.findByBatchIdWithDetails(duty.getBatch().getId());
+        Set<String> hallDepts = allocs.stream()
+                .filter(a -> a.getHall().getId().equals(duty.getHall().getId()))
+                .map(a -> a.getStudent().getDepartment())
+                .collect(Collectors.toSet());
+
+        if (InvigilatorAllocationEngine.hasDeptConflict(newFaculty, hallDepts)) {
+            logger.warn("Manual Duty Swap WARNING: Faculty {} ({}) has department conflict with hall {}",
+                    newFaculty.getName(), newFaculty.getDepartment(), duty.getHall().getName());
+        }
+
+        duty.setFaculty(newFaculty);
+        dutyRepository.save(duty);
+        logger.info("Swapped duty {} to faculty {}", dutyId, newFaculty.getName());
     }
 }

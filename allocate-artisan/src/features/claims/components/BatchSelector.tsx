@@ -8,9 +8,10 @@ interface BatchSelectorProps {
   selectedBatchId?: string | null;
   className?: string;
   statusFilter?: string[]; // e.g. ["ACTIVE", "COMPLETED"]
+  examTypeFilter?: "SEMESTER" | "INTERNAL"; // Filter between SEMESTER and INTERNAL
 }
 
-export function BatchSelector({ onBatchSelect, selectedBatchId, className, statusFilter }: BatchSelectorProps) {
+export function BatchSelector({ onBatchSelect, selectedBatchId, className, statusFilter, examTypeFilter }: BatchSelectorProps) {
   const [selectedSeason, setSelectedSeason] = useState<string>("");
 
   const { data: batches = [], isLoading } = useQuery({
@@ -21,25 +22,38 @@ export function BatchSelector({ onBatchSelect, selectedBatchId, className, statu
     },
   });
 
-  const filteredByStatus = useMemo(() => {
-    if (!statusFilter || statusFilter.length === 0) return batches;
-    return batches.filter((b) => statusFilter.includes(b.status));
-  }, [batches, statusFilter]);
+  const filteredBatches = useMemo(() => {
+    let result = batches;
+    if (statusFilter && statusFilter.length > 0) {
+      result = result.filter((b) => statusFilter.includes(b.status));
+    }
+    if (examTypeFilter) {
+      result = result.filter((b) => {
+        const type = (b.examSession?.examType || "SEMESTER").toUpperCase();
+        if (examTypeFilter === "INTERNAL") {
+          return type === "INTERNAL";
+        } else {
+          return type !== "INTERNAL"; // SEMESTER
+        }
+      });
+    }
+    return result;
+  }, [batches, statusFilter, examTypeFilter]);
 
   const uniqueSeasons = useMemo(() => {
     const map = new Set<string>();
-    filteredByStatus.forEach(b => {
+    filteredBatches.forEach(b => {
       if (b.examSession && b.examSession.seasonId) {
         map.add(b.examSession.seasonId);
       }
     });
     return Array.from(map);
-  }, [filteredByStatus]);
+  }, [filteredBatches]);
 
   const availableBatches = useMemo(() => {
     if (!selectedSeason) return [];
-    return filteredByStatus.filter((b) => b.examSession?.seasonId === selectedSeason);
-  }, [filteredByStatus, selectedSeason]);
+    return filteredBatches.filter((b) => b.examSession?.seasonId === selectedSeason);
+  }, [filteredBatches, selectedSeason]);
 
   // Handle external reset or initialization
   useEffect(() => {

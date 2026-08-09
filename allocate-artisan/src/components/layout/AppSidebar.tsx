@@ -42,6 +42,12 @@ export function AppSidebar({ settings }: { settings?: any }) {
 
   const menuGroups = [
     {
+      label: "Overview",
+      items: [
+        { title: "Command Center", url: "/dashboard", icon: LayoutGrid }
+      ]
+    },
+    {
       label: "Exam Planning",
       items: [
         { title: "Semester Exams", url: "/dashboard/semester", icon: GraduationCap },
@@ -51,7 +57,8 @@ export function AppSidebar({ settings }: { settings?: any }) {
     {
       label: "Duty & Allocations",
       items: [
-        { title: "Duty Allocation", url: "/dashboard/duty", icon: CalendarDays },
+        { title: "Semester Duty Allocation", url: "/dashboard/duty", icon: CalendarDays },
+        { title: "Internal Exam Duties", url: "/dashboard/internal-duty", icon: ShieldCheck },
         { title: "Appointment Orders", url: "/dashboard/appointments", icon: FileText },
         { title: "Communications", url: "/dashboard/communications", icon: Mail }
       ]
@@ -60,7 +67,8 @@ export function AppSidebar({ settings }: { settings?: any }) {
     {
       label: "Finance & Claims",
       items: [
-        { title: "Remuneration", url: "/dashboard/claims", icon: IndianRupee }
+        { title: "Theory Remuneration", url: "/dashboard/claims", icon: IndianRupee },
+        { title: "Lab Claims", url: "/dashboard/lab-claims", icon: Briefcase }
       ]
     },
     {
@@ -98,20 +106,17 @@ export function AppSidebar({ settings }: { settings?: any }) {
           asChild
           isActive={isActive}
           tooltip={item.title}
-          className={`h-11 px-3.5 rounded-xl transition-all duration-500 group relative overflow-hidden ${
+          className={`h-11 px-3.5 rounded-lg transition-all duration-200 group relative overflow-hidden ${
             isActive 
-              ? "bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent text-indigo-700 font-bold shadow-[inset_2px_0_0_rgba(99,102,241,1)]" 
-              : "text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 font-medium"
+              ? "bg-indigo-50 text-indigo-700 font-bold" 
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium"
           }`}
         >
           <Link to={item.url} className="flex items-center gap-3.5 w-full h-full relative z-10 group-data-[collapsible=icon]:justify-center">
-            <div className={`p-1.5 rounded-lg transition-all duration-500 ${isActive ? "bg-indigo-600 shadow-[0_0_15px_rgba(79,70,229,0.3)] text-white scale-110 group-data-[collapsible=icon]:scale-100" : "text-slate-400 group-hover:bg-white group-hover:text-indigo-500 group-hover:shadow-sm"}`}>
+            <div className={`p-1.5 rounded-md transition-all duration-200 ${isActive ? "bg-indigo-600 text-white group-data-[collapsible=icon]:scale-100" : "text-slate-400 group-hover:text-indigo-600"}`}>
               <item.icon className="h-4 w-4 shrink-0" strokeWidth={isActive ? 2.5 : 2} />
             </div>
             <span className="text-[14px] tracking-tight relative z-10 group-data-[collapsible=icon]:hidden">{item.title}</span>
-            {isActive && (
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-transparent pointer-events-none -mx-3.5 group-data-[collapsible=icon]:hidden" />
-            )}
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -119,11 +124,11 @@ export function AppSidebar({ settings }: { settings?: any }) {
   };
 
   return (
-    <Sidebar variant="sidebar" collapsible="icon" className="border-r border-slate-200/50 bg-white/70 backdrop-blur-3xl shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] transition-all duration-500">
-      <SidebarHeader className="h-24 flex items-center justify-center px-5 group-data-[collapsible=icon]:px-0 border-b border-slate-200/50 bg-white/40">
+    <Sidebar variant="sidebar" collapsible="icon" className="border-r border-slate-200 bg-white shadow-sm transition-all duration-300">
+      <SidebarHeader className="h-[72px] flex items-center justify-center px-5 group-data-[collapsible=icon]:px-0 border-b border-slate-200 bg-white">
         <div className="flex items-center gap-4 w-full group-data-[collapsible=icon]:justify-center">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center shadow-[0_8px_16px_-4px_rgba(79,70,229,0.4)] border border-indigo-400/20 shrink-0 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="h-10 w-10 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             {isDefaultLogo ? (
               <Briefcase className="h-5 w-5 text-white relative z-10" />
             ) : (
@@ -161,9 +166,9 @@ export function AppSidebar({ settings }: { settings?: any }) {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-slate-200/60 p-5 group-data-[collapsible=icon]:p-2 bg-white/50 backdrop-blur-xl">
-        <div className="flex items-center gap-3.5 w-full group-data-[collapsible=icon]:hidden bg-slate-50 border border-slate-200/60 rounded-2xl p-3 shadow-sm hover:shadow-md hover:border-slate-300 transition-all cursor-pointer">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center shadow-inner shrink-0 border border-white">
+      <SidebarFooter className="border-t border-slate-200 p-5 group-data-[collapsible=icon]:p-2 bg-white">
+        <div className="flex items-center gap-3.5 w-full group-data-[collapsible=icon]:hidden bg-slate-50 border border-slate-200 rounded-lg p-3 hover:bg-slate-100 transition-all cursor-pointer">
+          <div className="h-10 w-10 rounded-md bg-indigo-100 flex items-center justify-center shrink-0 border border-indigo-200">
             <User className="h-5 w-5 text-indigo-600" />
           </div>
           <div className="flex flex-col min-w-0 flex-1">
@@ -172,7 +177,7 @@ export function AppSidebar({ settings }: { settings?: any }) {
           </div>
         </div>
         <div className="hidden group-data-[collapsible=icon]:flex items-center justify-center w-full">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center shrink-0 border border-white shadow-sm">
+          <div className="h-10 w-10 rounded-md bg-indigo-100 flex items-center justify-center shrink-0 border border-indigo-200">
             <User className="h-5 w-5 text-indigo-600" />
           </div>
         </div>

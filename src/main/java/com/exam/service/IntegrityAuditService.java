@@ -31,10 +31,16 @@ public class IntegrityAuditService {
             {-1, -1}, {-1, 1}, {1, -1}, {1, 1}    // diagonals (Top-Left, Top-Right, Bottom-Left, Bottom-Right)
     };
 
-    private static final String[] COL_ORDER = {"I", "II", "III", "IV", "V"};
-    private static final Map<String, Integer> COL_INDEX = Map.of(
-            "I", 0, "II", 1, "III", 2, "IV", 3, "V", 4
-    );
+    private static final String[] COL_ORDER = {
+            "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
+            "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX"
+    };
+    private static final Map<String, Integer> COL_INDEX = new HashMap<>();
+    static {
+        for (int i = 0; i < COL_ORDER.length; i++) {
+            COL_INDEX.put(COL_ORDER[i], i);
+        }
+    }
 
     private final AllocationRepository allocationRepo;
     private final AllocationBatchRepository batchRepo;
@@ -110,11 +116,14 @@ public class IntegrityAuditService {
     }
 
     private HallAuditResult auditHall(String hallName, List<PdfAllocationView> seats) {
+        int maxRow = seats.stream().mapToInt(PdfAllocationView::seatRow).max().orElse(5);
+        int maxCol = seats.stream().map(seat -> COL_INDEX.getOrDefault(seat.seatCol(), 0)).max(Integer::compareTo).orElse(4);
+
         // Build grid: [row][colIndex] → PdfAllocationView
-        PdfAllocationView[][] grid = new PdfAllocationView[6][5]; // rows 1-5, cols 0-4
+        PdfAllocationView[][] grid = new PdfAllocationView[maxRow + 1][maxCol + 1]; 
         for (PdfAllocationView seat : seats) {
             Integer colIdx = COL_INDEX.get(seat.seatCol());
-            if (colIdx != null && seat.seatRow() >= 1 && seat.seatRow() <= 5) {
+            if (colIdx != null && seat.seatRow() >= 1 && seat.seatRow() <= maxRow) {
                 grid[seat.seatRow()][colIdx] = seat;
             }
         }
@@ -140,8 +149,8 @@ public class IntegrityAuditService {
         boolean isPureHall = subjectCounts.size() <= 1;
 
         // Check every seat against all 8 neighbors
-        for (int row = 1; row <= 5; row++) {
-            for (int col = 0; col < 5; col++) {
+        for (int row = 1; row <= maxRow; row++) {
+            for (int col = 0; col <= maxCol; col++) {
                 PdfAllocationView current = grid[row][col];
                 if (current == null) continue;
 
@@ -149,7 +158,7 @@ public class IntegrityAuditService {
                     int adjRow = row + offset[0];
                     int adjCol = col + offset[1];
 
-                    if (adjRow < 1 || adjRow > 5 || adjCol < 0 || adjCol >= 5) continue;
+                    if (adjRow < 1 || adjRow > maxRow || adjCol < 0 || adjCol > maxCol) continue;
 
                     PdfAllocationView neighbor = grid[adjRow][adjCol];
                     if (neighbor == null) continue;
@@ -192,10 +201,10 @@ public class IntegrityAuditService {
         int totalColumnsUsed = 0;
         Map<String, List<String>> columnDepts = new LinkedHashMap<>();
 
-        for (int col = 0; col < 8; col++) {
+        for (int col = 0; col <= maxCol; col++) {
             Set<String> depts = new LinkedHashSet<>();
             boolean hasStudents = false;
-            for (int row = 1; row <= 7; row++) {
+            for (int row = 1; row <= maxRow; row++) {
                 if (grid[row][col] != null) {
                     hasStudents = true;
                     depts.add(grid[row][col].department());
@@ -271,7 +280,7 @@ public class IntegrityAuditService {
                     for (int[] offset : ADJACENCY_OFFSETS) {
                         int adjRow = row + offset[0];
                         int adjCol = col + offset[1];
-                        if (adjRow < 1 || adjRow > 7 || adjCol < 0 || adjCol >= 8) continue;
+                        if (adjRow < 1 || adjRow > 7 || adjCol < 0 || adjCol >= 6) continue;
 
                         com.exam.entity.Allocation neighbor = grid[adjRow][adjCol];
                         if (neighbor == null) continue;

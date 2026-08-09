@@ -54,24 +54,27 @@ public class InternalAllocationEngine {
 
             if (hallStudents.isEmpty()) continue;
 
+            // Retrieve the full hall object to get rows and cols
+            Hall currentHall = request.halls().stream()
+                .filter(h -> h.id().equals(hallId))
+                .findFirst().orElse(new Hall(hallId, MAX_STUDENTS_PER_HALL, ROWS, COLS));
+
             InternalConstraintSolver.SolverResult solverResult = solver.allocateHall(
-                    hallId, hallStudents, pattern, request.positionHistory(), request.seasonSessionIndex());
+                    hallId, hallStudents, pattern, request.positionHistory(), request.seasonSessionIndex(),
+                    currentHall.rows(), currentHall.cols());
             
             allAssignments.addAll(solverResult.assignments());
             allViolations.addAll(solverResult.violations());
             
             utilizedHalls++;
-            totalCapacity += request.halls().stream()
-                .filter(h -> h.id().equals(hallId))
-                .map(h -> h.capacity() - 2) // Subtract the 2 empty padding seats
-                .findFirst().orElse(MAX_STUDENTS_PER_HALL);
+            totalCapacity += currentHall.capacity(); // Uses the full row*col capacity now
 
             String reason = optimized.reasoning().get(hallId);
             logger.debug("[INTERNAL-ENGINE] {}: {}", hallId, reason);
         }
 
         // =====================================================================
-        // RECONCILIATION LAYER — ZERO-LOSS SAFETY NET (7×6 grid)
+        // RECONCILIATION LAYER — ZERO-LOSS SAFETY NET (Dynamic Grid)
         // =====================================================================
         Set<String> assignedRegNos = allAssignments.stream()
                 .map(SeatAssignment::registerNumber)
@@ -95,28 +98,39 @@ public class InternalAllocationEngine {
             for (Student s : unassigned) {
                 boolean placed = false;
 
-                String bestHall = null;
+                String bestHallId = null;
                 int maxEmpty = 0;
+                Hall bestHallObj = null;
+
                 for (Map.Entry<String, Set<String>> e : occupiedSeats.entrySet()) {
-                    int hallCapacity = request.halls().stream()
+                    Hall hallObj = request.halls().stream()
                         .filter(h -> h.id().equals(e.getKey()))
-                        .map(h -> h.capacity())
-                        .findFirst().orElse(TOTAL_SEATS);
-                    int empty = hallCapacity - e.getValue().size();
+                        .findFirst().orElse(new Hall(e.getKey(), MAX_STUDENTS_PER_HALL, ROWS, COLS));
+                        
+                    int empty = hallObj.capacity() - e.getValue().size();
                     if (empty > maxEmpty) {
                         maxEmpty = empty;
-                        bestHall = e.getKey();
+                        bestHallId = e.getKey();
+                        bestHallObj = hallObj;
                     }
                 }
 
-                if (bestHall != null && maxEmpty > 0) {
-                    Set<String> seats = occupiedSeats.get(bestHall);
-                    for (int row = 1; row <= ROWS && !placed; row++) {
-                        for (String col : COL_NAMES) {
+                if (bestHallId != null && maxEmpty > 0 && bestHallObj != null) {
+                    Set<String> seats = occupiedSeats.get(bestHallId);
+                    
+                    // Generate column names dynamically based on the hall's configured columns
+                    String[] ROMAN = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+                    String[] colNames = new String[bestHallObj.cols()];
+                    for (int i = 0; i < bestHallObj.cols(); i++) {
+                        colNames[i] = i < ROMAN.length ? ROMAN[i] : String.valueOf(i + 1);
+                    }
+
+                    for (int row = 1; row <= bestHallObj.rows() && !placed; row++) {
+                        for (String col : colNames) {
                             String seatKey = row + ":" + col;
                             if (!seats.contains(seatKey)) {
                                 allAssignments.add(new SeatAssignment(
-                                        s.registerNumber(), bestHall, row, col,
+                                        s.registerNumber(), bestHallId, row, col,
                                         s.subjectCode(), s.department(),
                                         s.semester(), s.regulation(), 0
                                 ));

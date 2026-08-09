@@ -4,6 +4,7 @@ import com.exam.engine.model.Student;
 
 /**
  * PRODUCTION-GRADE Safety Validator for seating risk assessment.
+ * Now supports dynamic grid dimensions.
  */
 public class SafetyValidator {
 
@@ -13,7 +14,7 @@ public class SafetyValidator {
      * Vertical match: 50
      * Diagonal match: 25
      */
-    public int calculateRisk(Student[][] grid, int r, int c) {
+    public int calculateRisk(Student[][] grid, int r, int c, int rows, int cols) {
         Student current = grid[r][c];
         if (current == null) return 0;
 
@@ -34,10 +35,15 @@ public class SafetyValidator {
         }
 
         // Diagonal Check (Top-Right)
-        if (r > 1 && c < 4 && grid[r - 1][c + 1] != null && subject.equals(grid[r - 1][c + 1].subjectCode())) {
+        if (r > 1 && c < cols - 1 && grid[r - 1][c + 1] != null && subject.equals(grid[r - 1][c + 1].subjectCode())) {
             risk += 25;
         }
 
         return Math.min(risk, 100); // Cap at 100
+    }
+
+    /** Backward-compatible overload: defaults to 5×5 grid */
+    public int calculateRisk(Student[][] grid, int r, int c) {
+        return calculateRisk(grid, r, c, 5, 5);
     }
 }

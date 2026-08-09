@@ -51,26 +51,35 @@ public class GlobalOptimizer {
         // Always try to fill all 5 columns (25 students)
         // =============================================
         while (hallIndex < sortedHalls.size()) {
-            List<DeptBudget> fullDepts = getDeptsWithFullColumns(deptQueues);
+            Hall hall = sortedHalls.get(hallIndex);
+            int maxCols = hall.cols();
+            int maxRows = hall.rows();
+            int maxCapacity = hall.capacity();
+
+            List<DeptBudget> fullDepts = getDeptsWithFullColumns(deptQueues, maxRows);
 
             // CRITICAL: Reorder so that top1 and top2 have DIFFERENT subject codes
             // This prevents AIML(CGA1101) | AIDS(CGA1101) adjacency
             fullDepts = reorderForSubjectDiversity(fullDepts, deptQueues);
 
-            // Stop Phase A if we can't fill at least 3 columns from big departments
+            // Stop Phase A if we can't fill at least ceil(maxCols/2) columns from big departments
+            int minColsNeeded = (int) Math.ceil((double) maxCols / 2.0);
             int totalAvailableColumns = fullDepts.stream().mapToInt(d -> d.fullColumns).sum();
-            if (totalAvailableColumns < 3) break;
+            if (totalAvailableColumns < minColsNeeded) break;
 
             // Strict Rotation: peek at students and find best non-conflicting hall
-            List<Student> peekStudents = peekPotentialStudents(deptQueues, fullDepts);
+            List<Student> peekStudents = peekPotentialStudents(deptQueues, fullDepts, maxRows);
             int bestHallIdx = findBestNonConflictingHall(hallIndex, sortedHalls, peekStudents, seasonHistory);
             if (bestHallIdx != hallIndex) {
                 Hall chosen = sortedHalls.remove(bestHallIdx);
                 sortedHalls.add(hallIndex, chosen);
+                hall = chosen; // Update reference after swap
+                maxCols = hall.cols();
+                maxRows = hall.rows();
+                maxCapacity = hall.capacity();
                 rotationWarnings.add("Rotated hall " + chosen.id() + " to avoid repeat assignment.");
             }
 
-            Hall hall = sortedHalls.get(hallIndex);
             List<Student> hallStudents = new ArrayList<>();
             List<String> patternList = new ArrayList<>();
             StringBuilder rationale = new StringBuilder();
@@ -79,64 +88,47 @@ public class GlobalOptimizer {
                 DeptBudget top1 = fullDepts.get(0);
                 DeptBudget top2 = fullDepts.get(1);
 
-                if (top1.fullColumns >= 3 && top2.fullColumns >= 2) {
-                    // ABABA (15:10 = 25) — BEST CASE
-                    fillColumns(deptQueues, top1.dept, 3, hallStudents, patternList);
-                    fillColumns(deptQueues, top2.dept, 2, hallStudents, patternList);
-                    rationale.append("15:10 ABABA [").append(top1.dept).append("/").append(top2.dept).append("]");
+                // Dynamically build ABABA pattern based on maxCols
+                int cols1 = (int) Math.ceil((double) maxCols / 2.0); // e.g., 3 for 5, 4 for 7
+                int cols2 = maxCols - cols1; // e.g., 2 for 5, 3 for 7
 
+                if (top1.fullColumns >= cols1 && top2.fullColumns >= cols2) {
+                    // Full ABABA equivalent
+                    fillColumns(deptQueues, top1.dept, cols1, maxRows, hallStudents, patternList);
+                    fillColumns(deptQueues, top2.dept, cols2, maxRows, hallStudents, patternList);
+                    rationale.append(cols1 * maxRows).append(":").append(cols2 * maxRows).append(" ABABA [").append(top1.dept).append("/").append(top2.dept).append("]");
                 } else if (top1.fullColumns >= 2 && top2.fullColumns >= 2) {
-                    // ABAB (10:10 = 20) + try to add a 5th column
-                    fillColumns(deptQueues, top1.dept, 2, hallStudents, patternList);
-                    fillColumns(deptQueues, top2.dept, 2, hallStudents, patternList);
-                    rationale.append("10:10 ABAB [").append(top1.dept).append("/").append(top2.dept).append("]");
+                    // Partial ABAB + extras
+                    fillColumns(deptQueues, top1.dept, 2, maxRows, hallStudents, patternList);
+                    fillColumns(deptQueues, top2.dept, 2, maxRows, hallStudents, patternList);
+                    rationale.append(2 * maxRows).append(":").append(2 * maxRows).append(" ABAB [").append(top1.dept).append("/").append(top2.dept).append("]");
 
-                    DeptBudget extra = findExtraColumn(deptQueues);
-                    if (extra != null) {
-                        fillColumns(deptQueues, extra.dept, 1, hallStudents, patternList);
-                        rationale.append(" +5 [").append(extra.dept).append("]");
-                    }
-
-                } else if (top1.fullColumns >= 2 && top2.fullColumns >= 1) {
-                    // ABA (10:5 = 15) + try to add more columns
-                    fillColumns(deptQueues, top1.dept, 2, hallStudents, patternList);
-                    fillColumns(deptQueues, top2.dept, 1, hallStudents, patternList);
-                    rationale.append("10:5 ABA [").append(top1.dept).append("/").append(top2.dept).append("]");
-
-                    for (int extra = 0; extra < 2; extra++) {
-                        DeptBudget e = findExtraColumn(deptQueues);
+                    int remainingCols = maxCols - 4;
+                    for (int extra = 0; extra < remainingCols; extra++) {
+                        DeptBudget e = findExtraColumn(deptQueues, maxRows);
                         if (e != null) {
-                            fillColumns(deptQueues, e.dept, 1, hallStudents, patternList);
-                            rationale.append(" +5 [").append(e.dept).append("]");
+                            fillColumns(deptQueues, e.dept, 1, maxRows, hallStudents, patternList);
+                            rationale.append(" +").append(maxRows).append(" [").append(e.dept).append("]");
                         }
                     }
-
                 } else {
-                    // Both have only 1 full column each — need a 3rd dept to justify a hall
-                    DeptBudget top3 = fullDepts.size() >= 3 ? fullDepts.get(2) : null;
-                    if (top3 != null) {
-                        fillColumns(deptQueues, top1.dept, 1, hallStudents, patternList);
-                        fillColumns(deptQueues, top2.dept, 1, hallStudents, patternList);
-                        fillColumns(deptQueues, top3.dept, 1, hallStudents, patternList);
-                        rationale.append("5:5:5 ABC [").append(top1.dept).append("/").append(top2.dept).append("/").append(top3.dept).append("]");
-
-                        for (int extra = 0; extra < 2; extra++) {
-                            DeptBudget e = findExtraColumn(deptQueues);
-                            if (e != null) {
-                                fillColumns(deptQueues, e.dept, 1, hallStudents, patternList);
-                                rationale.append(" +5 [").append(e.dept).append("]");
-                            }
+                    // Fallback to ABCDE...
+                    for (int c = 0; c < maxCols; c++) {
+                        DeptBudget e = findExtraColumn(deptQueues, maxRows);
+                        if (e != null) {
+                            fillColumns(deptQueues, e.dept, 1, maxRows, hallStudents, patternList);
+                            rationale.append(" ").append(maxRows).append("[").append(e.dept).append("]");
+                        } else {
+                            break;
                         }
-                    } else {
-                        break;
                     }
                 }
             } else if (fullDepts.size() == 1) {
                 DeptBudget top1 = fullDepts.get(0);
-                int cols = Math.min(5, top1.fullColumns);
-                if (cols < 3) break;
-                fillColumns(deptQueues, top1.dept, cols, hallStudents, patternList);
-                rationale.append("Single-dept ").append(cols).append(" cols [").append(top1.dept).append("]");
+                int colsToFill = Math.min(maxCols, top1.fullColumns);
+                if (colsToFill < minColsNeeded) break;
+                fillColumns(deptQueues, top1.dept, colsToFill, maxRows, hallStudents, patternList);
+                rationale.append("Single-dept ").append(colsToFill).append(" cols [").append(top1.dept).append("]");
             } else {
                 break;
             }
@@ -157,8 +149,7 @@ public class GlobalOptimizer {
 
         // =============================================
         // PHASE B: Pack ALL remaining students into minimal halls
-        // SPREAD mode: columns I, III, V only (max 15 per hall)
-        // Split EVENLY: 27 → 14 + 13, not 25 + 2
+        // SPREAD mode: columns I, III, V only (max ceil(capacity/2) per hall)
         // =============================================
         List<Student> remainderPool = new ArrayList<>();
         for (Queue<Student> q : deptQueues.values()) {
@@ -172,17 +163,24 @@ public class GlobalOptimizer {
             remainderPool = interleaveRemainderBySubject(remainderPool);
 
             int remainderCount = remainderPool.size();
-            // Use max 25 per hall, but split evenly across needed halls
-            int hallsNeeded = (int) Math.ceil((double) remainderCount / 25);
+            // Estimate halls needed based on spread capacity (half capacity)
+            int hallsNeeded = 1;
+            int currentEstim = 0;
+            for (int i = hallIndex; i < sortedHalls.size(); i++) {
+                currentEstim += Math.ceil((double) sortedHalls.get(i).capacity() / 2.0);
+                if (currentEstim >= remainderCount) {
+                    hallsNeeded = i - hallIndex + 1;
+                    break;
+                }
+            }
             int availableHalls = sortedHalls.size() - hallIndex;
             hallsNeeded = Math.min(hallsNeeded, availableHalls);
             if (hallsNeeded == 0) hallsNeeded = 1;
 
-            // Calculate EVEN split
+            // Calculate EVEN split across the needed halls
             int perHall = (int) Math.ceil((double) remainderCount / hallsNeeded);
 
             for (int h = 0; h < hallsNeeded && offset < remainderPool.size() && hallIndex < sortedHalls.size(); h++) {
-                // Strict Rotation for remainder halls
                 List<Student> sample = remainderPool.subList(offset, Math.min(offset + perHall, remainderPool.size()));
                 int bestHallIdx = findBestNonConflictingHall(hallIndex, sortedHalls, sample, seasonHistory);
                 if (bestHallIdx != hallIndex) {
@@ -193,8 +191,13 @@ public class GlobalOptimizer {
 
                 Hall hall = sortedHalls.get(hallIndex);
                 int end = Math.min(offset + perHall, remainderPool.size());
-                List<Student> hallStudents = new ArrayList<>(remainderPool.subList(offset, end));
+                
+                // Ensure we don't exceed this specific hall's capacity
+                if (end - offset > hall.capacity()) {
+                    end = offset + hall.capacity();
+                }
 
+                List<Student> hallStudents = new ArrayList<>(remainderPool.subList(offset, end));
                 String[] autoPattern = generatePatternFromStudents(hallStudents);
 
                 assignments.put(hall.id(), hallStudents);
@@ -224,11 +227,14 @@ public class GlobalOptimizer {
                 String[] targetPattern = patterns.get(targetHallId);
 
                 if (targetStudents == null) continue;
+                
+                // Get target hall capacity & cols dynamically
+                Hall targetHall = sortedHalls.stream().filter(h -> h.id().equals(targetHallId)).findFirst().orElse(new Hall(targetHallId, 25, 5, 5));
 
                 int combinedCount = targetStudents.size() + currentStudents.size();
                 int combinedCols = targetPattern.length + currentPattern.length;
 
-                if (combinedCount <= 25 && combinedCols <= 5) {
+                if (combinedCount <= targetHall.capacity() && combinedCols <= targetHall.cols()) {
                     loggerDebug("Consolidating " + currentHallId + " into " + targetHallId);
 
                     List<String> combinedPatternList = new ArrayList<>();
@@ -250,7 +256,7 @@ public class GlobalOptimizer {
                     patterns.remove(currentHallId);
                     reasoning.remove(currentHallId);
 
-                    break;
+                    break; // Move to the next outer hall
                 }
             }
         }
@@ -285,18 +291,18 @@ public class GlobalOptimizer {
         return bestIdx;
     }
 
-    private List<Student> peekPotentialStudents(Map<String, Queue<Student>> queues, List<DeptBudget> fullDepts) {
+    private List<Student> peekPotentialStudents(Map<String, Queue<Student>> queues, List<DeptBudget> fullDepts, int maxRows) {
         List<Student> peek = new ArrayList<>();
         if (fullDepts.size() >= 2) {
             DeptBudget top1 = fullDepts.get(0);
             DeptBudget top2 = fullDepts.get(1);
             Queue<Student> q1 = queues.get(top1.dept);
             Queue<Student> q2 = queues.get(top2.dept);
-            if (q1 != null) peek.addAll(q1.stream().limit(15).toList());
-            if (q2 != null) peek.addAll(q2.stream().limit(10).toList());
+            if (q1 != null) peek.addAll(q1.stream().limit(maxRows * 3).toList()); // Up to 3 columns
+            if (q2 != null) peek.addAll(q2.stream().limit(maxRows * 2).toList()); // Up to 2 columns
         } else if (fullDepts.size() == 1) {
             Queue<Student> q = queues.get(fullDepts.get(0).dept);
-            if (q != null) peek.addAll(q.stream().limit(25).toList());
+            if (q != null) peek.addAll(q.stream().limit(maxRows * 5).toList()); // Up to 5 columns
         }
         return peek;
     }
@@ -308,34 +314,39 @@ public class GlobalOptimizer {
     }
 
     /** Pull exactly N columns (5 students each) from the given department */
-    private void fillColumns(Map<String, Queue<Student>> queues, String dept,
-                             int numColumns, List<Student> target, List<String> pattern) {
-        Queue<Student> q = queues.get(dept);
-        if (q == null) return;
-        for (int col = 0; col < numColumns; col++) {
-            for (int i = 0; i < 5 && !q.isEmpty(); i++) {
-                target.add(q.poll());
-            }
-            pattern.add(dept);
-        }
-    }
-
-    /** Find ANY department that has a full column (5+ students) available */
-    private DeptBudget findExtraColumn(Map<String, Queue<Student>> queues) {
-        return queues.entrySet().stream()
-                .filter(e -> e.getValue().size() >= 5)
-                .max(Comparator.comparingInt(e -> e.getValue().size()))
-                .map(e -> new DeptBudget(e.getKey(), e.getValue().size() / 5))
+    private DeptBudget findExtraColumn(Map<String, Queue<Student>> deptQueues, int maxRows) {
+        return deptQueues.entrySet().stream()
+                .filter(e -> e.getValue().size() >= maxRows)
+                .map(e -> new DeptBudget(e.getKey(), e.getValue().size() / maxRows, e.getValue().size()))
+                .max(Comparator.comparingInt((DeptBudget b) -> b.fullColumns)
+                               .thenComparingInt(b -> b.totalStudents))
                 .orElse(null);
     }
 
+    private void fillColumns(Map<String, Queue<Student>> deptQueues, String dept, int numColumns, int maxRows, List<Student> targetList, List<String> patternList) {
+        Queue<Student> q = deptQueues.get(dept);
+        if (q == null) return;
+        
+        int toPoll = numColumns * maxRows;
+        for (int i = 0; i < toPoll && !q.isEmpty(); i++) {
+            targetList.add(q.poll());
+        }
+        for (int i = 0; i < numColumns; i++) {
+            patternList.add(dept);
+        }
+    }
+
     /** Get departments that can fill at least one full column (5+ students) */
-    private List<DeptBudget> getDeptsWithFullColumns(Map<String, Queue<Student>> queues) {
-        return queues.entrySet().stream()
-                .filter(e -> e.getValue().size() >= 5)
-                .sorted((a, b) -> Integer.compare(b.getValue().size(), a.getValue().size()))
-                .map(e -> new DeptBudget(e.getKey(), e.getValue().size() / 5))
-                .collect(Collectors.toCollection(ArrayList::new));
+    private List<DeptBudget> getDeptsWithFullColumns(Map<String, Queue<Student>> deptQueues, int maxRows) {
+        List<DeptBudget> budgets = new ArrayList<>();
+        for (Map.Entry<String, Queue<Student>> entry : deptQueues.entrySet()) {
+            int fullColumns = entry.getValue().size() / maxRows;
+            if (fullColumns > 0) {
+                budgets.add(new DeptBudget(entry.getKey(), fullColumns, entry.getValue().size()));
+            }
+        }
+        budgets.sort((a, b) -> Integer.compare(b.fullColumns, a.fullColumns));
+        return budgets;
     }
 
     /** Get the dominant subject code for a department's student queue */
@@ -596,5 +607,5 @@ public class GlobalOptimizer {
         return queues;
     }
 
-    private record DeptBudget(String dept, int fullColumns) {}
+    private record DeptBudget(String dept, int fullColumns, int totalStudents) {}
 }

@@ -9,6 +9,18 @@ const apiClient = axios.create({
   },
 });
 
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  const tenant = localStorage.getItem("tenant") || "krce";
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (!config.headers["X-Tenant-ID"]) {
+    config.headers["X-Tenant-ID"] = tenant;
+  }
+  return config;
+});
+
 export interface ApiError {
   status: number;
   message: string;

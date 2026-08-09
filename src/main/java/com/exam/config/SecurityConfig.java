@@ -42,10 +42,10 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
+                .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC, jakarta.servlet.DispatcherType.FORWARD, jakarta.servlet.DispatcherType.ERROR).permitAll()
                 .requestMatchers("/api/v1/auth/**", "/api/v1/tenant/current", "/api/v1/public/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow preflight
-                .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/manifest.json").permitAll() // Static UI
+                .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/manifest.json", "/error").permitAll() // Static UI & Error route
                 .requestMatchers("/api/v1/auth/**").permitAll() // Allow public auth routes
                 .requestMatchers("/api/v1/admin/**").hasRole("SUPER_ADMIN") // Secure admin routes strictly
                 .requestMatchers("/actuator/**").permitAll()

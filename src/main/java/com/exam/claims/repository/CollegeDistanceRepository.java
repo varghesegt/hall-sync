@@ -11,7 +11,11 @@ import java.util.Optional;
 @Repository
 public interface CollegeDistanceRepository extends JpaRepository<CollegeDistance, Long> {
 
-    Optional<CollegeDistance> findByInstitutionCode(String institutionCode);
+    Optional<CollegeDistance> findFirstByInstitutionCode(String institutionCode);
+
+    default Optional<CollegeDistance> findByInstitutionCode(String institutionCode) {
+        return findFirstByInstitutionCode(institutionCode);
+    }
 
     @Query("SELECT c FROM CollegeDistance c WHERE LOWER(c.institutionName) LIKE LOWER(CONCAT('%', :name, '%'))")
     List<CollegeDistance> searchByName(String name);

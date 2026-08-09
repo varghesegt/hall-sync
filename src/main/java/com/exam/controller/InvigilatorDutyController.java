@@ -1,12 +1,15 @@
 package com.exam.controller;
 
+import com.exam.entity.AllocationBatch;
 import com.exam.entity.InvigilatorDuty;
+import com.exam.repository.AllocationBatchRepository;
 import com.exam.service.InvigilatorDutyService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
@@ -14,9 +17,11 @@ import java.util.*;
 public class InvigilatorDutyController {
 
     private final InvigilatorDutyService dutyService;
+    private final AllocationBatchRepository batchRepository;
 
-    public InvigilatorDutyController(InvigilatorDutyService dutyService) {
+    public InvigilatorDutyController(InvigilatorDutyService dutyService, AllocationBatchRepository batchRepository) {
         this.dutyService = dutyService;
+        this.batchRepository = batchRepository;
     }
 
     @PostMapping("/allocate/{batchId}")
@@ -43,18 +48,48 @@ public class InvigilatorDutyController {
     }
 
     @PutMapping("/{dutyId}/attendance")
-    public ResponseEntity<Void> markAttendance(@PathVariable UUID dutyId,
-                                                @RequestBody Map<String, Boolean> body) {
-        dutyService.markAttendance(dutyId, body.getOrDefault("present", false));
+    public ResponseEntity<Void> markAttendance(
+            @PathVariable UUID dutyId,
+            @RequestBody Map<String, Boolean> body) {
+        Boolean present = body.get("present");
+        if (present == null) present = true;
+        dutyService.markAttendance(dutyId, present);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/batch/{batchId}/excel")
     public void downloadExcel(@PathVariable UUID batchId, HttpServletResponse response) throws Exception {
+        String filename = getFormattedFilename(batchId, "xlsx");
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
-                "attachment; filename=invigilation_duties_" + batchId + ".xlsx");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
         dutyService.generateDutyExcel(batchId, response.getOutputStream());
+    }
+
+    @GetMapping("/batch/{batchId}/word")
+    public ResponseEntity<byte[]> downloadWord(@PathVariable UUID batchId) throws Exception {
+        String filename = getFormattedFilename(batchId, "docx");
+        byte[] docBytes = dutyService.generateDutyWord(batchId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                .body(docBytes);
+    }
+
+    @PutMapping("/{dutyId}/swap/{newFacultyId}")
+    public ResponseEntity<Void> swapDuty(@PathVariable UUID dutyId, @PathVariable UUID newFacultyId) {
+        dutyService.swapDuty(dutyId, newFacultyId);
+        return ResponseEntity.ok().build();
+    }
+
+    private String getFormattedFilename(UUID batchId, String ext) {
+        Optional<AllocationBatch> batchOpt = batchRepository.findByIdWithSession(batchId);
+        if (batchOpt.isPresent() && batchOpt.get().getExamSession() != null) {
+            var session = batchOpt.get().getExamSession();
+            String dateStr = session.getExamDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+            String shift = session.getSession();
+            return "Internal_Exam_Duty_Chart_" + dateStr + "_" + shift + "." + ext;
+        }
+        return "Internal_Exam_Duty_Chart_" + batchId + "." + ext;
     }
 
     private Map<String, Object> toDto(InvigilatorDuty d) {
