@@ -30,9 +30,15 @@ public class AwsConfig {
     public S3Client s3Client() {
         var credentials = StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey));
         
+        var overrideConfig = software.amazon.awssdk.core.client.config.ClientOverrideConfiguration.builder()
+                .apiCallTimeout(java.time.Duration.ofSeconds(3))
+                .apiCallAttemptTimeout(java.time.Duration.ofSeconds(2))
+                .build();
+
         var builder = S3Client.builder()
                 .region(Region.of(region))
-                .credentialsProvider(credentials);
+                .credentialsProvider(credentials)
+                .overrideConfiguration(overrideConfig);
 
         // If an endpoint URL is provided (e.g. for MinIO local dev), configure it
         if (endpointUrl != null && !endpointUrl.isBlank()) {

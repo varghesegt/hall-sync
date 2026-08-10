@@ -10,6 +10,8 @@ RUN npm run build
 FROM maven:3.9.6-eclipse-temurin-17-alpine AS backend-build
 WORKDIR /app/backend
 COPY pom.xml ./
+# Cache dependencies layer
+RUN mvn dependency:go-offline -B || true
 COPY src ./src
 # Embed compiled frontend build into backend static resources
 COPY --from=frontend-build /app/frontend/dist ./src/main/resources/static/

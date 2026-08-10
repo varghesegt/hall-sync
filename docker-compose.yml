@@ -44,7 +44,9 @@ services:
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       REDIS_HOST: redis
+      SPRING_DATA_REDIS_HOST: redis
       AWS_S3_ENDPOINT: http://minio:9000
+      APP_AWS_S3_ENDPOINT: http://minio:9000
       # Production JVM Optimization
       JAVA_OPTS: >-
         -Xms512m -Xmx2048m 

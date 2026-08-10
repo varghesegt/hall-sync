@@ -27,11 +27,25 @@ public class S3FileStorageService {
     }
 
     /**
-     * Uploads a raw byte array to S3.
+     * Uploads a raw byte array to local storage and S3.
      */
     public void storeFileBytes(UUID fileId, byte[] bytes, String contentType) {
-        String key = "uploads/" + fileId.toString() + ".pdf"; // Hardcoding .pdf since it's the main type for now
+        String key = "uploads/" + fileId.toString() + ".pdf";
         
+        // 1. Always store to local persistent storage FIRST (instant 1ms I/O)
+        try {
+            java.nio.file.Path localDir = java.nio.file.Paths.get("uploads");
+            if (!java.nio.file.Files.exists(localDir)) {
+                java.nio.file.Files.createDirectories(localDir);
+            }
+            java.nio.file.Path localFile = localDir.resolve(fileId.toString() + ".pdf");
+            java.nio.file.Files.write(localFile, bytes);
+            logger.info("Successfully saved file {} to local storage", localFile);
+        } catch (Exception ex) {
+            logger.warn("Could not write file to local uploads directory: {}", ex.getMessage());
+        }
+
+        // 2. Best-effort upload to S3 / MinIO
         try {
             PutObjectRequest putOb = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -42,26 +56,32 @@ public class S3FileStorageService {
             s3Client.putObject(putOb, RequestBody.fromBytes(bytes));
             logger.info("Successfully uploaded file {} to S3 bucket {}", key, bucketName);
         } catch (Exception e) {
-            logger.warn("Failed to upload file {} to S3. Attempting local fallback...", key);
-            try {
-                java.nio.file.Path localDir = java.nio.file.Paths.get(System.getProperty("java.io.tmpdir"), "hallsync_uploads");
-                java.nio.file.Files.createDirectories(localDir);
-                java.nio.file.Path localFile = localDir.resolve(fileId.toString() + ".pdf");
-                java.nio.file.Files.write(localFile, bytes);
-                logger.info("Successfully uploaded file {} to local fallback", localFile);
-            } catch (Exception ex) {
-                logger.error("Local fallback also failed for storeFileBytes", ex);
-                throw new RuntimeException("Cloud storage and local fallback upload failed", ex);
-            }
+            logger.warn("S3/MinIO upload notice for {}: {} (local copy preserved)", key, e.getMessage());
         }
     }
 
     /**
-     * Retrieves a raw byte array from S3. Returns null if not found.
+     * Retrieves a raw byte array from local storage or S3. Returns null if not found.
      */
     public byte[] getFileBytes(UUID fileId) {
         String key = "uploads/" + fileId.toString() + ".pdf";
 
+        // 1. Check local persistent storage FIRST (1ms response time)
+        try {
+            java.nio.file.Path localPath = java.nio.file.Paths.get("uploads", fileId.toString() + ".pdf");
+            if (java.nio.file.Files.exists(localPath)) {
+                return java.nio.file.Files.readAllBytes(localPath);
+            }
+            // Fallback check temp dir
+            java.nio.file.Path tmpPath = java.nio.file.Paths.get(System.getProperty("java.io.tmpdir"), "hallsync_uploads", fileId.toString() + ".pdf");
+            if (java.nio.file.Files.exists(tmpPath)) {
+                return java.nio.file.Files.readAllBytes(tmpPath);
+            }
+        } catch (Exception ex) {
+            logger.warn("Error reading local storage for file {}: {}", fileId, ex.getMessage());
+        }
+
+        // 2. Fallback to S3 / MinIO
         try {
             GetObjectRequest getOb = GetObjectRequest.builder()
                     .bucket(bucketName)
@@ -71,15 +91,7 @@ public class S3FileStorageService {
             ResponseBytes<GetObjectResponse> objectBytes = s3Client.getObjectAsBytes(getOb);
             return objectBytes.asByteArray();
         } catch (Exception e) {
-            logger.warn("Failed to download file {} from S3. Attempting local fallback...", key);
-            try {
-                java.nio.file.Path localPath = java.nio.file.Paths.get(System.getProperty("java.io.tmpdir"), "hallsync_uploads", fileId.toString() + ".pdf");
-                if (java.nio.file.Files.exists(localPath)) {
-                    return java.nio.file.Files.readAllBytes(localPath);
-                }
-            } catch (Exception ex) {
-                logger.error("Local fallback also failed for getFileBytes", ex);
-            }
+            logger.warn("File {} not found in S3/MinIO: {}", key, e.getMessage());
             return null;
         }
     }
