@@ -13,7 +13,7 @@ import {
 import { getBatches, downloadBatchPdf, downloadBatchExcel, downloadBatchSummaryExcel } from "@/api/allocationApi";
 import { downloadInternalBatchPdf, downloadInternalBatchExcel, downloadInternalBatchSummaryExcel } from "@/api/internalApi";
 import apiClient from "@/api/axios";
-import { Download, Search, FileText, ClipboardList, CheckCircle2, RefreshCw, Calendar, Layers, Clock } from "lucide-react";
+import { Download, Search, FileText, ClipboardList, CheckCircle2, RefreshCw, Calendar, Layers, Clock, Hash } from "lucide-react";
 import { toast } from "sonner";
 
 interface BatchHistoryItem {
@@ -38,6 +38,7 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedSessionTime, setSelectedSessionTime] = useState<string>("");
+  const [selectedBatchId, setSelectedBatchId] = useState<string>("");
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
 
   const { data: allBatches = [], isLoading, refetch } = useQuery<BatchHistoryItem[]>({
@@ -56,7 +57,7 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
     },
   });
 
-  // Unique Season IDs
+  // Step 1: Unique Season IDs
   const seasonIdOptions = useMemo(() => {
     const set = new Set<string>();
     for (const b of allBatches) {
@@ -66,7 +67,7 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
     return Array.from(set).sort();
   }, [allBatches]);
 
-  // Unique Exam Dates for selected Season ID
+  // Step 2: Unique Exam Dates for selected Season ID
   const dateOptions = useMemo(() => {
     if (!selectedSeasonId) return [];
     const set = new Set<string>();
@@ -79,19 +80,33 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
     return Array.from(set).sort();
   }, [allBatches, selectedSeasonId]);
 
-  // De-duplicated unique Session Times for selected Season + Date (e.g. ["FN", "AN"])
-  const sessionTimesForDate = useMemo(() => {
+  // All batches matching selected Season ID + Exam Date
+  const availableBatchesForDate = useMemo(() => {
     if (!selectedSeasonId || !selectedDate) return [];
-    const set = new Set<string>();
-    for (const b of allBatches) {
+    return allBatches.filter((b) => {
       const s = b.examSession?.seasonId || "ACADEMIC YEAR 2026-2027";
       const d = b.examSession?.date || "";
-      if (s === selectedSeasonId && d === selectedDate) {
-        set.add(b.examSession?.session?.toUpperCase() || "FN");
-      }
+      return s === selectedSeasonId && d === selectedDate;
+    });
+  }, [allBatches, selectedSeasonId, selectedDate]);
+
+  // De-duplicated unique Session Times for selected Season + Date (e.g. ["FN", "AN"])
+  const sessionTimesForDate = useMemo(() => {
+    const set = new Set<string>();
+    for (const b of availableBatchesForDate) {
+      set.add(b.examSession?.session?.toUpperCase() || "FN");
     }
     return Array.from(set).sort();
-  }, [allBatches, selectedSeasonId, selectedDate]);
+  }, [availableBatchesForDate]);
+
+  // Filtered batch options matching active session time
+  const batchOptionsForSession = useMemo(() => {
+    if (!selectedSessionTime) return availableBatchesForDate;
+    return availableBatchesForDate.filter((b) => {
+      const sess = b.examSession?.session?.toUpperCase() || "FN";
+      return sess === selectedSessionTime;
+    });
+  }, [availableBatchesForDate, selectedSessionTime]);
 
   // Auto-select first session time when Date is selected
   useEffect(() => {
@@ -104,17 +119,25 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
     }
   }, [sessionTimesForDate, selectedSessionTime]);
 
-  // Active selected batch
+  // Auto-select latest batch ID when session or date changes
+  useEffect(() => {
+    if (batchOptionsForSession.length > 0) {
+      const exists = batchOptionsForSession.some((b) => b.id === selectedBatchId);
+      if (!exists) {
+        setSelectedBatchId(batchOptionsForSession[0].id);
+      }
+    } else {
+      setSelectedBatchId("");
+    }
+  }, [batchOptionsForSession, selectedBatchId]);
+
+  // Active selected batch object
   const selectedBatch = useMemo(() => {
-    if (!selectedSeasonId || !selectedDate) return null;
-    const targetSession = selectedSessionTime || sessionTimesForDate[0] || "FN";
-    return allBatches.find((b) => {
-      const s = b.examSession?.seasonId || "ACADEMIC YEAR 2026-2027";
-      const d = b.examSession?.date || "";
-      const sess = b.examSession?.session?.toUpperCase() || "FN";
-      return s === selectedSeasonId && d === selectedDate && sess === targetSession;
-    }) || null;
-  }, [allBatches, selectedSeasonId, selectedDate, selectedSessionTime, sessionTimesForDate]);
+    if (!selectedBatchId) {
+      return batchOptionsForSession[0] || availableBatchesForDate[0] || null;
+    }
+    return allBatches.find((b) => b.id === selectedBatchId) || batchOptionsForSession[0] || null;
+  }, [allBatches, selectedBatchId, batchOptionsForSession, availableBatchesForDate]);
 
   const handleDownload = async (batchId: string, type: "pdf" | "excel" | "summary" | "duty") => {
     setDownloadingType(type);
@@ -199,7 +222,7 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
                 {isInternal ? "Internal Exam Download Center" : "Semester Exam Download Center"}
               </CardTitle>
               <CardDescription className="text-xs text-slate-500">
-                Select Season ID & Exam Date to retrieve official seating plans, Excel rosters, and duty schedules
+                Select Season ID, Exam Date & Batch ID to retrieve seating plans, Excel rosters, and duty schedules
               </CardDescription>
             </div>
           </div>
@@ -218,8 +241,8 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
           </div>
         ) : (
           <>
-            {/* 2-Step Search Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 3-Filter Controls: Season ID -> Exam Date -> Batch ID */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Step 1: Select Season ID */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
@@ -232,6 +255,7 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
                     setSelectedSeasonId(val);
                     setSelectedDate("");
                     setSelectedSessionTime("");
+                    setSelectedBatchId("");
                   }}
                 >
                   <SelectTrigger className="h-9 text-xs bg-white border-slate-200 font-semibold text-slate-900">
@@ -258,6 +282,7 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
                   onValueChange={(val) => {
                     setSelectedDate(val);
                     setSelectedSessionTime("");
+                    setSelectedBatchId("");
                   }}
                   disabled={!selectedSeasonId || dateOptions.length === 0}
                 >
@@ -273,18 +298,49 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Step 3: Select Batch ID */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Hash className="h-3.5 w-3.5 text-emerald-600" />
+                  3. Select Batch ID
+                </label>
+                <Select
+                  value={selectedBatchId}
+                  onValueChange={setSelectedBatchId}
+                  disabled={!selectedDate || batchOptionsForSession.length === 0}
+                >
+                  <SelectTrigger className="h-9 text-xs bg-white border-slate-200 font-semibold text-slate-900">
+                    <SelectValue placeholder={!selectedDate ? "Select Exam Date first" : "Choose Specific Batch..."} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {batchOptionsForSession.map((b) => {
+                      const createdTime = b.createdAt ? new Date(b.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
+                      const sessionName = b.examSession?.session || "FN";
+                      return (
+                        <SelectItem key={b.id} value={b.id} className="text-xs font-mono">
+                          Batch #{b.id.substring(0, 8).toUpperCase()} ({sessionName} • {createdTime || 'Latest'})
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {/* Targeted Download Hub for Selected Date */}
+            {/* Targeted Download Hub for Selected Date & Batch */}
             {selectedBatch ? (
               <div className="p-4 rounded-xl border border-emerald-200/80 bg-emerald-50/30 space-y-3 animate-in fade-in-50 duration-300 shadow-2xs">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200/60 pb-3">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                       <span className="text-xs font-bold text-slate-900 uppercase">
                         {formatSeasonLabel(selectedSeasonId)} • DATE: {formatDisplayDate(selectedDate)}
                       </span>
+                      <Badge variant="outline" className="text-[10px] font-mono bg-white text-slate-700 border-slate-300">
+                        Batch #{selectedBatch.id.substring(0, 8).toUpperCase()}
+                      </Badge>
                     </div>
 
                     {/* Session Switcher (FN / AN) if both exist for date */}
@@ -302,7 +358,11 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
                             className={`h-6 text-[10px] px-2.5 font-bold ${
                               isSelected ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
                             }`}
-                            onClick={() => setSelectedSessionTime(st)}
+                            onClick={() => {
+                              setSelectedSessionTime(st);
+                              const firstInSess = availableBatchesForDate.find((b) => (b.examSession?.session?.toUpperCase() || "FN") === st);
+                              if (firstInSess) setSelectedBatchId(firstInSess.id);
+                            }}
                           >
                             {st === "FN" ? "Forenoon (FN)" : st === "AN" ? "Afternoon (AN)" : st}
                           </Button>
@@ -312,7 +372,7 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
                   </div>
 
                   <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-[10px] w-fit shrink-0">
-                    ✓ ACTIVE BATCH AVAILABLE
+                    ✓ ACTIVE BATCH SELECTED
                   </Badge>
                 </div>
 
