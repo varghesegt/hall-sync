@@ -38,9 +38,9 @@ COPY --from=backend-build --chown=hallsync:hallsync /app/backend/target/*.jar ap
 
 EXPOSE 8081
 
-# Production Actuator Healthcheck
+# Production Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -f http://localhost:8081/actuator/health || exit 1
+  CMD curl -f http://localhost:8081/ || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

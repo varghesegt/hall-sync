@@ -4,7 +4,7 @@ title HallSync - Starting System
 
 :: --- CONFIGURATION ---
 set APP_URL=http://localhost:8081
-set HEALTH_URL=%APP_URL%/actuator/health
+set HEALTH_URL=%APP_URL%/
 set CHROME_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe"
 :: ---------------------
 
@@ -66,8 +66,7 @@ if !attempt! gtr 100 (
     exit /b 1
 )
 
-:: Use PowerShell for silent health check
-powershell -command "try { $response = Invoke-WebRequest -Uri '%HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; if ($response.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+powershell -command "try { if ((Invoke-WebRequest -Uri '%HEALTH_URL%' -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
 
 if %errorlevel% neq 0 (
     <nul set /p =.
