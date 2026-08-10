@@ -267,7 +267,7 @@ public class InvigilatorDutyScheduleService {
             Row headerRow = sheet.createRow(rowNum++);
             headerRow.setHeightInPoints(24);
             String[] headers = {"S.No", "Staff Name", "Dept.", "Allotted Staff", "Hall No.",
-                    "Roll No.", "Strength", "Time", "Sign", "Absentees", "Slip"};
+                    "Roll No.", "Strength", "Time", "Sign", "Absentees", "Sign"};
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
                 cell.setCellValue(headers[i]);
