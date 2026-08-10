@@ -60,17 +60,18 @@ public class DatabaseSeeder implements CommandLineRunner {
             logger.info("KRCE Tenant created successfully.");
         }
 
-        // Ensure the KRCE Admin is present and password is always in sync
+        // Ensure the KRCE Admin is present and password is in sync
         {
             var existingKrce = userRepository.findByEmail("coe1@krce.ac.in");
             if (existingKrce.isPresent()) {
                 AppUser krceAdmin = existingKrce.get();
-                String freshHash = passwordEncoder.encode("skm@8115");
-                krceAdmin.setPassword(freshHash);
-                krceAdmin.setRole("ROLE_COLLEGE_ADMIN");
-                krceAdmin.setTenant(tenantRepository.findByTenantId("krce").orElse(null));
-                userRepository.save(krceAdmin);
-                logger.info("KRCE Admin password re-synced on startup.");
+                if (!passwordEncoder.matches("skm@8115", krceAdmin.getPassword()) || krceAdmin.getTenant() == null) {
+                    krceAdmin.setPassword(passwordEncoder.encode("skm@8115"));
+                    krceAdmin.setRole("ROLE_COLLEGE_ADMIN");
+                    krceAdmin.setTenant(tenantRepository.findByTenantId("krce").orElse(null));
+                    userRepository.save(krceAdmin);
+                    logger.info("KRCE Admin credentials updated on startup.");
+                }
             } else {
                 logger.info("Initializing Master Database with KRCE Admin: coe1@krce.ac.in");
                 AppUser krceAdmin = new AppUser();
@@ -84,15 +85,17 @@ public class DatabaseSeeder implements CommandLineRunner {
             }
         }
 
-        // Ensure the Super Admin is present and password is always in sync
+        // Ensure the Super Admin is present and password is in sync
         {
             var existingAdmin = userRepository.findByEmail(adminUsername);
             if (existingAdmin.isPresent()) {
                 AppUser superAdmin = existingAdmin.get();
-                superAdmin.setPassword(passwordEncoder.encode(adminPassword));
-                superAdmin.setRole("ROLE_SUPER_ADMIN");
-                userRepository.save(superAdmin);
-                logger.info("Super Admin password re-synced on startup: {}", adminUsername);
+                if (!passwordEncoder.matches(adminPassword, superAdmin.getPassword())) {
+                    superAdmin.setPassword(passwordEncoder.encode(adminPassword));
+                    superAdmin.setRole("ROLE_SUPER_ADMIN");
+                    userRepository.save(superAdmin);
+                    logger.info("Super Admin password updated on startup: {}", adminUsername);
+                }
             } else {
                 logger.info("Initializing Master Database with Super Admin: {}", adminUsername);
                 AppUser superAdmin = new AppUser();
@@ -105,9 +108,13 @@ public class DatabaseSeeder implements CommandLineRunner {
             }
         }
 
-        // --- Seed Mock Faculty for testing Duty Engine ---
-        if (facultyRepository.count() == 0) {
-            logger.info("Seeding 20 mock Faculty members for Invigilator Duty testing...");
+        // --- Seed Mock Faculty ONLY in dev/test environments (not prod) ---
+        String activeProfiles = System.getProperty("spring.profiles.active", 
+                System.getenv("SPRING_PROFILES_ACTIVE") != null ? System.getenv("SPRING_PROFILES_ACTIVE") : "dev");
+        boolean isProd = activeProfiles.toLowerCase().contains("prod");
+        
+        if (!isProd && facultyRepository.count() == 0) {
+            logger.info("DEV MODE: Seeding 20 mock Faculty members for Invigilator Duty testing...");
             String[] depts = {"CSE", "ECE", "EEE", "MECH", "CIVIL", "IT"};
             java.util.List<com.exam.entity.Faculty> mockFaculty = new java.util.ArrayList<>();
             
@@ -128,6 +135,8 @@ public class DatabaseSeeder implements CommandLineRunner {
             }
             facultyRepository.saveAll(mockFaculty);
             logger.info("Successfully seeded 20 mock Faculty members.");
+        } else if (isProd && facultyRepository.count() == 0) {
+            logger.info("PROD MODE: Skipping mock faculty seeding. Upload real faculty via Excel.");
         }
     }
 }

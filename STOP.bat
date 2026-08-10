@@ -11,10 +11,10 @@ echo.
 
 :: 1. Stop Containers
 echo  [1/2] Stopping all services...
-docker-compose stop
+docker compose stop
 if %errorlevel% neq 0 (
     echo      [WARNING] Issues stopping some services. Attempting forceful cleanup...
-    docker-compose down
+    docker compose down
 ) else (
     echo      ✓ Services stopped.
 )

@@ -35,6 +35,8 @@ Thumbs.db
 
 # Project Specific
 *.pdf
+*.xlsx
+.env
 logs/
 uploads/
 scratch/

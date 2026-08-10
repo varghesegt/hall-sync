@@ -39,11 +39,11 @@ echo  [2/3] Initializing Database and Application...
 echo        (This may take 30-60 seconds on the first run)
 echo.
 
-docker-compose up -d
+docker compose up -d --build
 if %errorlevel% neq 0 (
     echo.
     echo  [ERROR] Failed to launch containers.
-    echo  Please ensure no other application is using port 8081 or 5432.
+    echo  Please ensure no other application is using port 8081.
     echo.
     pause
     exit /b 1
@@ -79,7 +79,7 @@ echo.
 echo.
 echo  ╔═══════════════════════════════════════════════════════════╗
 echo  ║                                                           ║
-echo  ║   🚀 HallSync IS ONLINE AND READY!                        ║
+echo  ║   HallSync IS ONLINE AND READY!                           ║
 echo  ║                                                           ║
 echo  ║   Login Credentials:                                      ║
 echo  ║     Username: coe1@krce.ac.in                             ║
