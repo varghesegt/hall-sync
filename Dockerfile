@@ -13,7 +13,8 @@ COPY pom.xml ./
 # Cache dependencies layer
 RUN mvn dependency:go-offline -B || true
 COPY src ./src
-# Embed compiled frontend build into backend static resources
+# Embed compiled frontend build into backend build directories
+COPY --from=frontend-build /app/frontend/dist ./allocate-artisan/dist
 COPY --from=frontend-build /app/frontend/dist ./src/main/resources/static/
 RUN mvn clean package -DskipTests
 
