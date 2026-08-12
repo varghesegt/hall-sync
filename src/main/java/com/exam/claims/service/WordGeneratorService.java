@@ -218,7 +218,10 @@ public class WordGeneratorService {
         addCenteredParagraphToCell(autonomyPara, ClaimConstants.COLLEGE_AUTONOMY, 11, false);
 
         XWPFParagraph examPara = textCell.addParagraph();
-        addCenteredParagraphToCell(examPara, ClaimConstants.getExamTitle(record.getExamSeason()), 12, true);
+        String examTitle = record.isRevaluation()
+            ? "ESE - Re-Valuation - " + (record.getExamSeason() != null ? record.getExamSeason() : "DEC 2025") + " Examinations"
+            : ClaimConstants.getExamTitle(record.getExamSeason());
+        addCenteredParagraphToCell(examPara, examTitle, 12, true);
 
         setRowColWidths(titleTable, new int[]{2200, 13200});
 
@@ -346,15 +349,17 @@ public class WordGeneratorService {
         fnCell.setWidth("4000");
         anCell.setWidth("4000");
 
+        int scriptRows = record.isRevaluation() ? 17 : 12;
+
         // FN Table
-        XWPFTable fnTable = createNestedTable(fnCell, 12, 3);
+        XWPFTable fnTable = createNestedTable(fnCell, scriptRows, 3);
         setTableWidth(fnTable, "100%");
         setTableBorders(fnTable);
         fnTable.setCellMargins(0, 30, 0, 30); // tight padding for scripts table
         populateScriptTable(fnTable, record, "FN");
 
         // AN Table
-        XWPFTable anTable = createNestedTable(anCell, 12, 3);
+        XWPFTable anTable = createNestedTable(anCell, scriptRows, 3);
         setTableWidth(anTable, "100%");
         setTableBorders(anTable);
         anTable.setCellMargins(0, 30, 0, 30);
@@ -780,8 +785,9 @@ public class WordGeneratorService {
         formatCell(table.getRow(1).getCell(1), "Subject Code", true, 10, null, ParagraphAlignment.CENTER);
         formatCell(table.getRow(1).getCell(2), "No. of Scripts", true, 10, null, ParagraphAlignment.CENTER);
 
-        // Display exactly 10 rows matching the PDF
-        for (int i = 0; i < 10; i++) {
+        // Display 15 rows for revaluation or 10 rows for standard evaluation
+        int rowCount = record.isRevaluation() ? 15 : 10;
+        for (int i = 0; i < rowCount; i++) {
             XWPFTableRow row = table.getRow(i + 2);
             String sn = String.valueOf(i + 1);
             String code = "";

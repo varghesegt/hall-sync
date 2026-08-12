@@ -35,6 +35,9 @@ public class ClaimRecord {
     @Column(name = "is_government_holiday")
     private Boolean governmentHoliday = false;
 
+    @Column(name = "is_revaluation")
+    private Boolean revaluation = false;
+
     @Column(name = "sessions_attended")
     private String sessionsAttended;
 
@@ -213,8 +216,11 @@ public class ClaimRecord {
     public String getExamSeason() { return examSeason; }
     public void setExamSeason(String examSeason) { this.examSeason = examSeason; }
 
-    public boolean isGovernmentHoliday() { return governmentHoliday != null && governmentHoliday; }
+    public Boolean isGovernmentHoliday() { return governmentHoliday != null && governmentHoliday; }
     public void setGovernmentHoliday(Boolean governmentHoliday) { this.governmentHoliday = governmentHoliday != null ? governmentHoliday : false; }
+
+    public Boolean isRevaluation() { return revaluation != null && revaluation; }
+    public void setRevaluation(Boolean revaluation) { this.revaluation = revaluation; }
 
     public String getSessionsAttended() { return sessionsAttended; }
     public void setSessionsAttended(String sessionsAttended) { this.sessionsAttended = sessionsAttended; }

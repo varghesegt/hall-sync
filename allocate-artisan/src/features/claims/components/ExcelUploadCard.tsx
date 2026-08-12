@@ -5,15 +5,16 @@ import { useMutation } from "@tanstack/react-query";
 import { uploadInternalExcel } from "@/api/internalApi";
 import type { UploadResponse } from "@/api/allocationApi";
 import type { ApiError } from "@/api/axios";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ExcelUploadCardProps {
   onSuccess: (fileId: string) => void;
   fileId: string | null;
+  onReset?: () => void;
 }
 
-export function ExcelUploadCard({ onSuccess, fileId }: ExcelUploadCardProps) {
+export function ExcelUploadCard({ onSuccess, fileId, onReset }: ExcelUploadCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -39,14 +40,24 @@ export function ExcelUploadCard({ onSuccess, fileId }: ExcelUploadCardProps) {
     if (file) handleFile(file);
   };
 
+  const handleReset = () => {
+    setFileName(null);
+    upload.reset();
+    if (onReset) {
+      onReset();
+    } else {
+      onSuccess("");
+    }
+  };
+
   const isComplete = !!fileId;
 
   return (
-    <Card className={cn(isComplete && "border-emerald-300/50")}>
+    <Card className={cn("transition-all duration-300", isComplete && "border-emerald-300/50 shadow-emerald-500/5 shadow-md bg-white")}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base">1. Upload Student List</CardTitle>
+            <CardTitle className="text-base font-bold text-slate-900">1. Upload Student List</CardTitle>
             <CardDescription>Upload an Excel (.xlsx) file containing the student roster</CardDescription>
           </div>
           {isComplete && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
@@ -102,10 +113,28 @@ export function ExcelUploadCard({ onSuccess, fileId }: ExcelUploadCardProps) {
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50/50 p-3 text-sm">
-            <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-            <span className="truncate font-medium text-slate-700">{fileName}</span>
-            <span className="ml-auto text-xs text-slate-400">ID: {fileId.slice(0, 8)}…</span>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm shadow-xs">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-lg shrink-0">
+                <FileSpreadsheet className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate font-bold text-slate-800">{fileName || "Student Roster Uploaded"}</p>
+                <p className="text-xs font-semibold text-slate-500 tracking-wider">ID: {fileId.slice(0, 8)}… • Verified & Ready</p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleReset}
+              className="h-9 px-3.5 text-xs font-bold text-slate-700 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 border-slate-300 bg-white shrink-0 gap-1.5 transition-all shadow-2xs"
+              title="Reset and upload a different Excel file"
+            >
+              <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
+              Reset / Change File
+            </Button>
           </div>
         )}
       </CardContent>

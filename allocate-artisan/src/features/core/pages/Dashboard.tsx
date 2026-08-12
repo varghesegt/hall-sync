@@ -40,8 +40,15 @@ export default function Dashboard() {
             <UploadCard
               fileId={fileId}
               onSuccess={(fid) => {
-                setFileId(fid);
-                sessionStorage.setItem("hall_sync_semester_file_id", fid);
+                if (!fid) {
+                  setFileId(null);
+                  setSessionId(null);
+                  sessionStorage.removeItem("hall_sync_semester_file_id");
+                  sessionStorage.removeItem("hall_sync_semester_session_id");
+                } else {
+                  setFileId(fid);
+                  sessionStorage.setItem("hall_sync_semester_file_id", fid);
+                }
               }}
             />
           </div>

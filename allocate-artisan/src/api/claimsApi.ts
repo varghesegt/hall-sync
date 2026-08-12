@@ -86,13 +86,15 @@ export const claimsApi = {
     file: File,
     examSeason?: string,
     valuationDate?: string,
-    governmentHoliday?: boolean
+    governmentHoliday?: boolean,
+    isRevaluation?: boolean
   ): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
     if (examSeason) formData.append('examSeason', examSeason);
     if (valuationDate) formData.append('valuationDate', valuationDate);
     if (governmentHoliday !== undefined) formData.append('governmentHoliday', governmentHoliday.toString());
+    if (isRevaluation !== undefined) formData.append('isRevaluation', isRevaluation.toString());
 
     const { data } = await apiClient.post<UploadResponse>('/claims/upload', formData, {
       headers: {

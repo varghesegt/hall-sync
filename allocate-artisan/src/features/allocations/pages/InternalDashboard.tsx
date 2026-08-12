@@ -50,6 +50,12 @@ export default function InternalDashboard() {
                 setFileId(fid);
                 sessionStorage.setItem("hall_sync_internal_file_id", fid);
               }}
+              onReset={() => {
+                setFileId(null);
+                setSessionId(null);
+                sessionStorage.removeItem("hall_sync_internal_file_id");
+                sessionStorage.removeItem("hall_sync_internal_session_id");
+              }}
             />
           </div>
 

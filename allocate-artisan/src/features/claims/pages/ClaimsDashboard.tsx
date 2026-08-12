@@ -37,6 +37,7 @@ export default function ClaimsDashboard() {
   const [examSeason, setExamSeason] = useState('');
   const [valuationDate, setValuationDate] = useState('');
   const [governmentHoliday, setGovernmentHoliday] = useState(false);
+  const [isRevaluation, setIsRevaluation] = useState(false);
   const [selectedSeasonFilter, setSelectedSeasonFilter] = useState('ALL');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +50,7 @@ export default function ClaimsDashboard() {
     const queryParams = new URLSearchParams({
       season: examSeason,
       date: valuationDate,
+      isRevaluation: isRevaluation.toString(),
     });
     const link = `${window.location.origin}/public/remuneration/${newBatchId}?${queryParams.toString()}`;
     navigator.clipboard.writeText(link);
@@ -119,7 +121,7 @@ export default function ClaimsDashboard() {
         setUploadProgress((prev) => Math.min(prev + 15, 85));
       }, 400);
 
-      const result = await claimsApi.uploadExcel(file, examSeason, valuationDate, governmentHoliday);
+      const result = await claimsApi.uploadExcel(file, examSeason, valuationDate, governmentHoliday, isRevaluation);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -291,7 +293,7 @@ export default function ClaimsDashboard() {
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                 Exam Season Identifier <span className="text-rose-500">*</span>
@@ -352,6 +354,37 @@ export default function ClaimsDashboard() {
                   Disabled
                 </button>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Revaluation Mode
+              </label>
+              <div className="flex h-10 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  className={`flex-1 rounded-lg text-xs font-bold transition-all ${
+                    isRevaluation
+                      ? 'bg-white text-amber-700 shadow-sm border border-amber-200 font-black'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                  onClick={() => setIsRevaluation(true)}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  className={`flex-1 rounded-lg text-xs font-bold transition-all ${
+                    !isRevaluation
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-black'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                  onClick={() => setIsRevaluation(false)}
+                >
+                  No
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium">ESE Re-Valuation format (15 rows)</p>
             </div>
           </div>
 

@@ -53,8 +53,9 @@ public class ClaimController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "examSeason", required = false) String examSeason,
             @RequestParam(value = "valuationDate", required = false) String valuationDateStr,
-            @RequestParam(value = "governmentHoliday", defaultValue = "false") boolean governmentHoliday) {
-        log.info("Received file upload: {} ({} bytes)", file.getOriginalFilename(), file.getSize());
+            @RequestParam(value = "governmentHoliday", defaultValue = "false") boolean governmentHoliday,
+            @RequestParam(value = "isRevaluation", defaultValue = "false") boolean isRevaluation) {
+        log.info("Received file upload: {} ({} bytes, revaluation={})", file.getOriginalFilename(), file.getSize(), isRevaluation);
 
         try {
             // Parse Excel
@@ -112,6 +113,7 @@ public class ClaimController {
                 record.setBatchId(batchId);
                 record.setExamSeason(examSeason);
                 record.setGovernmentHoliday(governmentHoliday);
+                record.setRevaluation(isRevaluation);
                 if (parsedValuationDate != null) {
                     record.setValuationDate(parsedValuationDate);
                 }
