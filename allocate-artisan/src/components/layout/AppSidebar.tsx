@@ -12,28 +12,15 @@ import {
 } from "@/components/ui/sidebar";
 import { Link, useLocation } from "react-router-dom";
 import {
-  BarChart3,
-  CalendarDays,
   FileText,
   Users,
-  ShieldAlert,
-  Archive,
   Settings,
   GraduationCap,
   IndianRupee,
   MapPin,
   User,
   Building,
-  Briefcase,
-  Activity,
-  ShieldCheck,
-  TrendingUp,
-  PackageCheck,
-  Mail,
-  Upload,
-  Target,
-  GitCommit,
-  LayoutGrid
+  Briefcase
 } from "lucide-react";
 
 export function AppSidebar({ settings }: { settings?: any }) {
@@ -42,12 +29,6 @@ export function AppSidebar({ settings }: { settings?: any }) {
 
   const menuGroups = [
     {
-      label: "Overview",
-      items: [
-        { title: "Command Center", url: "/dashboard", icon: LayoutGrid }
-      ]
-    },
-    {
       label: "Exam Planning",
       items: [
         { title: "Semester Exams", url: "/dashboard/semester", icon: GraduationCap },
@@ -55,27 +36,10 @@ export function AppSidebar({ settings }: { settings?: any }) {
       ]
     },
     {
-      label: "Duty & Allocations",
-      items: [
-        { title: "Semester Duty Allocation", url: "/dashboard/duty", icon: CalendarDays },
-        { title: "Internal Exam Duties", url: "/dashboard/internal-duty", icon: ShieldCheck },
-        { title: "Appointment Orders", url: "/dashboard/appointments", icon: FileText },
-        { title: "Communications", url: "/dashboard/communications", icon: Mail }
-      ]
-    },
-
-    {
       label: "Finance & Claims",
       items: [
         { title: "Theory Remuneration", url: "/dashboard/claims", icon: IndianRupee },
         { title: "Lab Claims", url: "/dashboard/lab-claims", icon: Briefcase }
-      ]
-    },
-    {
-      label: "Audit & Compliance",
-      items: [
-        { title: "Accreditation", url: "/dashboard/reports", icon: Building },
-        { title: "Audit Center", url: "/dashboard/audit-center", icon: ShieldCheck }
       ]
     },
     {
