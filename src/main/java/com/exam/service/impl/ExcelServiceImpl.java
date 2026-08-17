@@ -241,6 +241,9 @@ public class ExcelServiceImpl implements ExcelService {
             int totalCol = subjects.size() + 2;
 
             // --- HEADER SECTION ---
+            Row row0 = sheet.createRow(currentRow++);
+            createMergedCell(sheet, row0, 0, totalCol, resolveCollegeName().toUpperCase(), titleStyle);
+
             Row row1 = sheet.createRow(currentRow++);
             createMergedCell(sheet, row1, 0, totalCol, "(AUTONOMOUS)", subTitleStyle);
 
@@ -259,9 +262,14 @@ public class ExcelServiceImpl implements ExcelService {
             dateLabel.setCellValue("DATE: " + examDateStr);
             dateLabel.setCellStyle(subTitleStyle);
 
-            String sessionTypeStr = (session != null && session.getSession() != null) ? session.getSession() : "AN";
+            String rawSessionType = (session != null && session.getSession() != null && !session.getSession().isBlank())
+                    ? session.getSession().trim()
+                    : "AN";
+            String sessionTypeStr = rawSessionType.toUpperCase().startsWith("SESSION")
+                    ? rawSessionType.toUpperCase()
+                    : "SESSION: " + rawSessionType.toUpperCase();
             Cell sessLabel = row4.createCell(2);
-            sessLabel.setCellValue(sessionTypeStr); // e.g. FN / AN
+            sessLabel.setCellValue(sessionTypeStr); // e.g. SESSION: FN / SESSION: AN
             sessLabel.setCellStyle(subTitleStyle);
 
             currentRow++; // Spacer
@@ -574,14 +582,13 @@ public class ExcelServiceImpl implements ExcelService {
 
     private String resolveCollegeName() {
         String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
-        if (tenantId == null) {
-            return "EXAM SEATING ALLOCATION SYSTEM";
+        if (tenantId != null) {
+            String cachedName = com.exam.config.tenant.TenantContext.getCollegeName(tenantId);
+            if (cachedName != null && !cachedName.trim().isEmpty()) {
+                return cachedName;
+            }
         }
-        String cachedName = com.exam.config.tenant.TenantContext.getCollegeName(tenantId);
-        if (cachedName != null && !cachedName.trim().isEmpty()) {
-            return cachedName;
-        }
-        return "EXAM SEATING ALLOCATION SYSTEM";
+        return com.exam.claims.util.ClaimConstants.COLLEGE_NAME;
     }
 
     private String resolveSubjectCode(String subjectCode, String subjectName) {

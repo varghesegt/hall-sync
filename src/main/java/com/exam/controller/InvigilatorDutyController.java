@@ -100,9 +100,10 @@ public class InvigilatorDutyController {
             var session = batchOpt.get().getExamSession();
             String dateStr = session.getExamDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
             String shift = session.getSession();
-            return "Internal_Exam_Duty_Chart_" + dateStr + "_" + shift + "." + ext;
+            String prefix = "INTERNAL".equalsIgnoreCase(session.getExamType()) ? "Internal_Exam" : "Semester_Exam";
+            return prefix + "_Duty_Chart_" + dateStr + "_" + shift + "." + ext;
         }
-        return "Internal_Exam_Duty_Chart_" + batchId + "." + ext;
+        return "Exam_Duty_Chart_" + batchId + "." + ext;
     }
 
     private Map<String, Object> toDto(InvigilatorDuty d) {

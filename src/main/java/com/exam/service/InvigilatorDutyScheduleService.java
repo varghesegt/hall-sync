@@ -86,7 +86,7 @@ public class InvigilatorDutyScheduleService {
         String collegeName = com.exam.config.tenant.TenantContext.getCollegeName(tenantId);
         if (collegeName == null) collegeName = "K.RAMAKRISHNAN COLLEGE OF ENGINEERING";
 
-        String examTime = getExamTime(session.getSession());
+        String examTime = getExamTime(session.getSession(), session.getExamType());
         String dateStr = session.getExamDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
         String sessionSuffix = session.getSession() != null ? session.getSession().toUpperCase() : "FN";
 
@@ -398,7 +398,10 @@ public class InvigilatorDutyScheduleService {
     }
 
     private String buildIntLabel(ExamSession session) {
-        String name = session.getName();
+        if (session != null && "SEMESTER".equalsIgnoreCase(session.getExamType())) {
+            return session.getSeasonId() != null ? session.getSeasonId().toUpperCase() : "END SEMESTER EXAMINATIONS";
+        }
+        String name = session != null ? session.getName() : null;
         if (name != null && !name.isBlank()) {
             String upper = name.toUpperCase().trim();
             String num = upper.replaceAll("[^0-9]", "");
@@ -410,7 +413,10 @@ public class InvigilatorDutyScheduleService {
     }
 
     private String buildCiaLabel(ExamSession session) {
-        String name = session.getName();
+        if (session != null && "SEMESTER".equalsIgnoreCase(session.getExamType())) {
+            return "END SEMESTER EXAMINATIONS - INVIGILATION DUTY SCHEDULE";
+        }
+        String name = session != null ? session.getName() : null;
         if (name != null && !name.isBlank()) {
             String upper = name.toUpperCase().trim();
             String num = upper.replaceAll("[^0-9]", "");
@@ -428,13 +434,20 @@ public class InvigilatorDutyScheduleService {
         return "EXAM 2 - INVIGILATION DUTY SCHEDULE";
     }
 
-    private String getExamTime(String session) {
-        if (session == null) return "10.00 AM TO 12.00 PM";
-        String s = session.trim().toUpperCase();
-        if (s.contains("AN") || s.equals("AFTERNOON")) {
-            return "02.40 PM TO 04.40 PM";
+    private String getExamTime(String sessionType, String examType) {
+        boolean isInternal = "INTERNAL".equalsIgnoreCase(examType);
+        if (sessionType == null) {
+            return isInternal ? "10.00 AM TO 12.00 PM" : "10.00 AM TO 01.00 PM";
         }
-        return "10.00 AM TO 12.00 PM";
+        String s = sessionType.trim().toUpperCase();
+        boolean isAN = s.contains("AN") || s.equals("AFTERNOON");
+
+        if (isInternal) {
+            return isAN ? "02.40 PM TO 04.40 PM" : "10.00 AM TO 12.00 PM";
+        } else {
+            // Semester Exam Mode timings: FN is 10.00 AM TO 01.00 PM, AN is 01.45 PM TO 04.45 PM
+            return isAN ? "01.45 PM TO 04.45 PM" : "10.00 AM TO 01.00 PM";
+        }
     }
 
     // ═══════════════════ INNER DATA CLASS ═══════════════════
