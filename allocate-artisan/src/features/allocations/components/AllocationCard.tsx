@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useAllocation } from "@/hooks/useAllocation";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PreviewPanel } from "@/components/PreviewPanel";
-import { AlertCircle, Download, Play, ClipboardList } from "lucide-react";
+import { IntegrityAuditBanner } from "@/components/IntegrityAuditBanner";
+import { AlertCircle, Download, Play, ClipboardList, ShieldCheck } from "lucide-react";
 import { getIntegritySummary, downloadIntegrityCertificate, type IntegritySummary } from "@/api/allocationApi";
 import apiClient from "@/api/axios";
 import { cn } from "@/lib/utils";
@@ -20,8 +21,8 @@ export function AllocationCard({ sessionId, selectedRooms = [] }: AllocationCard
   const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
   const [isDownloadingSummary, setIsDownloadingSummary] = useState(false);
   const [isDownloadingSchedule, setIsDownloadingSchedule] = useState(false);
-  const [, setIsDownloadingCert] = useState(false);
-  const [, setIntegrity] = useState<IntegritySummary | null>(null);
+  const [isDownloadingCert, setIsDownloadingCert] = useState(false);
+  const [integrity, setIntegrity] = useState<IntegritySummary | null>(null);
 
   const refreshIntegrity = useCallback(() => {
     if (allocation.status === "ACTIVE" && allocation.batchId) {
@@ -185,7 +186,14 @@ export function AllocationCard({ sessionId, selectedRooms = [] }: AllocationCard
 
         {/* Downloads */}
         {hasActiveBatch && (
-          <div className="space-y-2 pt-2">
+          <div className="space-y-3 pt-2">
+            {/* Integrity Audit Banner */}
+            <IntegrityAuditBanner
+              integrity={integrity}
+              onDownloadCertificate={handleDownloadCertificate}
+              isDownloadingCert={isDownloadingCert}
+            />
+
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"

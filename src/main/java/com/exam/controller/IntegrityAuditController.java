@@ -61,21 +61,19 @@ public class IntegrityAuditController {
         summary.put("totalAdjacencyChecks", report.totalAdjacencyChecks());
         summary.put("totalViolations", report.totalAdjacencyViolations());
 
-        // Include per-hall violation breakdown when integrity < 100%
-        if (!report.certified()) {
-            java.util.List<Map<String, Object>> hallViolations = new java.util.ArrayList<>();
-            for (IntegrityAuditService.HallAuditResult hall : report.hallResults()) {
-                if (hall.adjacencyViolations() > 0) {
-                    Map<String, Object> hv = new java.util.LinkedHashMap<>();
-                    hv.put("hallName", hall.hallName());
-                    hv.put("violations", hall.adjacencyViolations());
-                    hv.put("studentCount", hall.studentCount());
-                    hv.put("details", hall.violationDetails());
-                    hallViolations.add(hv);
-                }
+        // Include per-hall violation breakdown whenever violations exist
+        java.util.List<Map<String, Object>> hallViolations = new java.util.ArrayList<>();
+        for (IntegrityAuditService.HallAuditResult hall : report.hallResults()) {
+            if (hall.adjacencyViolations() > 0) {
+                Map<String, Object> hv = new java.util.LinkedHashMap<>();
+                hv.put("hallName", hall.hallName());
+                hv.put("violations", hall.adjacencyViolations());
+                hv.put("studentCount", hall.studentCount());
+                hv.put("details", hall.violationDetails());
+                hallViolations.add(hv);
             }
-            summary.put("hallViolations", hallViolations);
         }
+        summary.put("hallViolations", hallViolations);
 
         return ResponseEntity.ok(summary);
     }

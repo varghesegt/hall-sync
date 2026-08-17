@@ -13,7 +13,8 @@ import type { AllocationStatus } from "@/api/allocationApi";
 import type { ApiError } from "@/api/axios";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PreviewPanel } from "@/components/PreviewPanel";
-import { AlertCircle, Download, Play, ClipboardList } from "lucide-react";
+import { IntegrityAuditBanner } from "@/components/IntegrityAuditBanner";
+import { AlertCircle, Download, Play, ClipboardList, ShieldCheck } from "lucide-react";
 import { getIntegritySummary, type IntegritySummary } from "@/api/allocationApi";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +30,8 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
   const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
   const [isDownloadingSummary, setIsDownloadingSummary] = useState(false);
   const [isDownloadingSchedule, setIsDownloadingSchedule] = useState(false);
-  const [, setIntegrity] = useState<IntegritySummary | null>(null);
+  const [isDownloadingCert, setIsDownloadingCert] = useState(false);
+  const [integrity, setIntegrity] = useState<IntegritySummary | null>(null);
 
   const trigger = useMutation<{ batchId: string }, ApiError, void>({
     mutationFn: () => {
@@ -59,6 +61,7 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
   const resolvedBatchId = polling.data?.batchId ?? batchId;
   const disabled = !sessionId || selectedRooms.length === 0;
   const isPolling = isTriggered && (status === "NOT_STARTED" || status === "RUNNING");
+  const hasActiveBatch = status === "ACTIVE" && !!resolvedBatchId;
 
   const refreshIntegrity = useCallback(() => {
     if (resolvedBatchId) {
@@ -71,6 +74,28 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
   useEffect(() => {
     if (status === "ACTIVE") refreshIntegrity();
   }, [status, refreshIntegrity]);
+
+  const handleDownloadCertificate = async () => {
+    if (!resolvedBatchId) return;
+    setIsDownloadingCert(true);
+    try {
+      const { downloadIntegrityCertificate } = await import("@/api/allocationApi");
+      const { blob, filename } = await downloadIntegrityCertificate(resolvedBatchId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to download Integrity Certificate:", error);
+      alert("Failed to download Integrity Certificate. Please try again.");
+    } finally {
+      setIsDownloadingCert(false);
+    }
+  };
 
   const downloadFile = useCallback(async (downloadFn: (id: string) => Promise<{blob: Blob, filename: string}>) => {
     if (!resolvedBatchId) return;
@@ -157,7 +182,14 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
 
         {/* Downloads */}
         {hasActiveBatch && (
-          <div className="space-y-2 pt-2">
+          <div className="space-y-3 pt-2">
+            {/* Integrity Audit Banner */}
+            <IntegrityAuditBanner
+              integrity={integrity}
+              onDownloadCertificate={handleDownloadCertificate}
+              isDownloadingCert={isDownloadingCert}
+            />
+
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
