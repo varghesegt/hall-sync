@@ -71,6 +71,11 @@ public class WordGeneratorService {
     }
 
     private void generateClaimPage(XWPFDocument document, ClaimRecord record) {
+        if (record.isRevaluation()) {
+            addRevaluationPage(document, record);
+            return;
+        }
+
         // Header
         addHeader(document, record);
 
@@ -208,20 +213,26 @@ public class WordGeneratorService {
         leftMar.setW(java.math.BigInteger.valueOf(80));
         leftMar.setType(org.openxmlformats.schemas.wordprocessingml.x2006.main.STTblWidth.DXA);
 
+        boolean isRev = record.isRevaluation();
+        int officeFs = isRev ? 14 : 22;
+        int collegeFs = isRev ? 11 : 14;
+        int autonomyFs = isRev ? 9 : 11;
+        int examFs = isRev ? 10 : 12;
+
         XWPFParagraph officePara = textCell.getParagraphs().get(0);
-        addCenteredParagraphToCell(officePara, ClaimConstants.OFFICE_TITLE, 22, true);
+        addCenteredParagraphToCell(officePara, ClaimConstants.OFFICE_TITLE, officeFs, true);
 
         XWPFParagraph collegePara = textCell.addParagraph();
-        addCenteredParagraphToCell(collegePara, ClaimConstants.COLLEGE_NAME, 14, true);
+        addCenteredParagraphToCell(collegePara, ClaimConstants.COLLEGE_NAME, collegeFs, true);
 
         XWPFParagraph autonomyPara = textCell.addParagraph();
-        addCenteredParagraphToCell(autonomyPara, ClaimConstants.COLLEGE_AUTONOMY, 11, false);
+        addCenteredParagraphToCell(autonomyPara, ClaimConstants.COLLEGE_AUTONOMY, autonomyFs, false);
 
         XWPFParagraph examPara = textCell.addParagraph();
-        String examTitle = record.isRevaluation()
+        String examTitle = isRev
             ? "ESE - Re-Valuation - " + (record.getExamSeason() != null ? record.getExamSeason() : "DEC 2025") + " Examinations"
             : ClaimConstants.getExamTitle(record.getExamSeason());
-        addCenteredParagraphToCell(examPara, examTitle, 12, true);
+        addCenteredParagraphToCell(examPara, examTitle, examFs, true);
 
         setRowColWidths(titleTable, new int[]{2200, 13200});
 
@@ -230,7 +241,7 @@ public class WordGeneratorService {
         headerSpacer.setSpacingBefore(0);
         headerSpacer.setSpacingAfter(0);
         XWPFRun spacerRun = headerSpacer.createRun();
-        spacerRun.setFontSize(2);
+        spacerRun.setFontSize(1);
 
         // Date and Sessions line
         String dateStr = record.getValuationDate() != null
@@ -240,8 +251,8 @@ public class WordGeneratorService {
 
         XWPFParagraph datePara = document.createParagraph();
         datePara.setAlignment(ParagraphAlignment.LEFT);
-        datePara.setSpacingBefore(20);
-        datePara.setSpacingAfter(20);
+        datePara.setSpacingBefore(isRev ? 5 : 20);
+        datePara.setSpacingAfter(isRev ? 5 : 20);
 
         CTP ctp = datePara.getCTP();
         CTPPr ppr = ctp.getPPr() == null ? ctp.addNewPPr() : ctp.getPPr();
@@ -253,7 +264,7 @@ public class WordGeneratorService {
         XWPFRun leftRun = datePara.createRun();
         leftRun.setText("Date of Valuation(dd-mm-yyyy) : " + dateStr);
         leftRun.setBold(true);
-        leftRun.setFontSize(9);
+        leftRun.setFontSize(isRev ? 8 : 9);
         leftRun.setFontFamily("Times New Roman");
 
         XWPFRun tabRun = datePara.createRun();
@@ -656,7 +667,14 @@ public class WordGeneratorService {
         initializeTable(bankTable, 4, 3);
         setTableWidth(bankTable, "100%");
         setTableBorders(bankTable);
-        bankTable.setCellMargins(20, 80, 20, 80); // tight margins for bank details
+
+        boolean isRev = record.isRevaluation();
+        int labelFs = isRev ? 8 : 12;
+        int valueFs = isRev ? 8 : 12;
+        int sigFs = isRev ? 8 : 10;
+        int cellMargin = isRev ? 10 : 20;
+
+        bankTable.setCellMargins(cellMargin, isRev ? 30 : 80, cellMargin, isRev ? 30 : 80);
 
         // Merge third column (Signature block) vertically across all 4 rows
         org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTcPr tcPr = bankTable.getRow(0).getCell(2).getCTTc().addNewTcPr();
@@ -666,24 +684,210 @@ public class WordGeneratorService {
             tcPrMerge.addNewVMerge().setVal(org.openxmlformats.schemas.wordprocessingml.x2006.main.STMerge.CONTINUE);
         }
 
-        formatCell(bankTable.getRow(0).getCell(0), "ACCOUNT NUMBER :", true, 12, "F2F2F2", ParagraphAlignment.CENTER);
-        formatCell(bankTable.getRow(0).getCell(1), record.getBankAccountNumber() != null ? "Account Number : " + record.getBankAccountNumber() : "N/A", false, 12, null, ParagraphAlignment.CENTER);
+        formatCell(bankTable.getRow(0).getCell(0), "ACCOUNT NUMBER :", true, labelFs, "F2F2F2", ParagraphAlignment.CENTER);
+        formatCell(bankTable.getRow(0).getCell(1), safeStr(record.getBankAccountNumber()), false, valueFs, null, ParagraphAlignment.CENTER);
         
-        // In all 3 visually matching formats, the bottom right is signed off by Chief Examiner
-        formatCell(bankTable.getRow(0).getCell(2), "Signature of the Chief Examiner", true, 10, null, ParagraphAlignment.CENTER);
+        formatCell(bankTable.getRow(0).getCell(2), "Signature of the Chief Examiner", true, sigFs, null, ParagraphAlignment.CENTER);
         bankTable.getRow(0).getCell(2).setVerticalAlignment(XWPFTableCell.XWPFVertAlign.BOTTOM);
 
-        formatCell(bankTable.getRow(1).getCell(0), "IFSC CODE :", true, 12, "F2F2F2", ParagraphAlignment.CENTER);
-        formatCell(bankTable.getRow(1).getCell(1), safeStr(record.getIfscCode()), false, 12, null, ParagraphAlignment.CENTER);
+        formatCell(bankTable.getRow(1).getCell(0), "IFSC CODE :", true, labelFs, "F2F2F2", ParagraphAlignment.CENTER);
+        formatCell(bankTable.getRow(1).getCell(1), safeStr(record.getIfscCode()), false, valueFs, null, ParagraphAlignment.CENTER);
 
-        formatCell(bankTable.getRow(2).getCell(0), "BANK NAME :", true, 12, "F2F2F2", ParagraphAlignment.CENTER);
-        formatCell(bankTable.getRow(2).getCell(1), safeStr(record.getBankName()), false, 12, null, ParagraphAlignment.CENTER);
+        formatCell(bankTable.getRow(2).getCell(0), "BANK NAME :", true, labelFs, "F2F2F2", ParagraphAlignment.CENTER);
+        formatCell(bankTable.getRow(2).getCell(1), safeStr(record.getBankName()), false, valueFs, null, ParagraphAlignment.CENTER);
 
-        formatCell(bankTable.getRow(3).getCell(0), "BRANCH :", true, 12, "F2F2F2", ParagraphAlignment.CENTER);
-        formatCell(bankTable.getRow(3).getCell(1), safeStr(record.getBranch()), false, 12, null, ParagraphAlignment.CENTER);
+        formatCell(bankTable.getRow(3).getCell(0), "BRANCH :", true, labelFs, "F2F2F2", ParagraphAlignment.CENTER);
+        formatCell(bankTable.getRow(3).getCell(1), safeStr(record.getBranch()), false, valueFs, null, ParagraphAlignment.CENTER);
 
         // Column widths for bank details (Total 15400 twips)
         setRowColWidths(bankTable, new int[]{4000, 6000, 5400});
+    }
+
+    // ==================== REVALUATION BODY (EXACT SCRANED LAYOUT) ====================
+
+    private void addRevaluationPage(XWPFDocument document, ClaimRecord record) {
+        // 1. Header (Logo + Title)
+        addHeader(document, record);
+
+        // 2. Personal Info Table (3 rows x 8 cols) matching exact scanned sample
+        XWPFTable infoTable = document.createTable(3, 8);
+        initializeTable(infoTable, 3, 8);
+        setTableWidth(infoTable, "100%");
+        setTableBorders(infoTable);
+        infoTable.setCellMargins(10, 30, 10, 30);
+
+        // Row 0: Post Held | EXAMINER | (merge 2-5) Date of Valuation | (merge 6-7) date
+        formatCell(infoTable.getRow(0).getCell(0), "Post Held", true, 8, null, ParagraphAlignment.CENTER);
+        formatCell(infoTable.getRow(0).getCell(1), record.getPostHeld() != null ? record.getPostHeld() : "EXAMINER", true, 8, null, ParagraphAlignment.CENTER);
+        mergeCellsHorizontal(infoTable, 0, 2, 5);
+        formatCell(infoTable.getRow(0).getCell(2), "Date of Valuation(dd.mm.yyyy) :", true, 8, null, ParagraphAlignment.LEFT);
+        mergeCellsHorizontal(infoTable, 0, 6, 7);
+        String dateStr = record.getValuationDate() != null ? record.getValuationDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "";
+        formatCell(infoTable.getRow(0).getCell(6), dateStr, false, 8, null, ParagraphAlignment.CENTER);
+
+        // Row 1: Name | (merge 1-2) name | Mobile Number | (merge 4-5) mobile | Designation | designation
+        formatCell(infoTable.getRow(1).getCell(0), "Name", true, 8, null, ParagraphAlignment.CENTER);
+        mergeCellsHorizontal(infoTable, 1, 1, 2);
+        formatCell(infoTable.getRow(1).getCell(1), safeStr(record.getFullName()), false, 8, null, ParagraphAlignment.CENTER);
+        formatCell(infoTable.getRow(1).getCell(3), "Mobile Number", true, 7, null, ParagraphAlignment.CENTER);
+        mergeCellsHorizontal(infoTable, 1, 4, 5);
+        formatCell(infoTable.getRow(1).getCell(4), safeStr(record.getMobileNo()), false, 8, null, ParagraphAlignment.CENTER);
+        formatCell(infoTable.getRow(1).getCell(6), "Designation", true, 7, null, ParagraphAlignment.CENTER);
+        formatCell(infoTable.getRow(1).getCell(7), safeStr(record.getDesignation()), true, 8, null, ParagraphAlignment.CENTER);
+
+        // Row 2: Name of Institution | (merge 1-5) institution | Board | board
+        formatCell(infoTable.getRow(2).getCell(0), "Name of Institution", true, 7, null, ParagraphAlignment.CENTER);
+        mergeCellsHorizontal(infoTable, 2, 1, 5);
+        formatCell(infoTable.getRow(2).getCell(1), safeStr(record.getInstitutionName()), false, 8, null, ParagraphAlignment.CENTER);
+        formatCell(infoTable.getRow(2).getCell(6), "Board", true, 8, null, ParagraphAlignment.CENTER);
+        formatCell(infoTable.getRow(2).getCell(7), safeStr(record.getBoardName()), false, 8, null, ParagraphAlignment.CENTER);
+
+        setRowColWidths(infoTable, new int[]{1800, 1800, 1800, 1800, 1800, 1800, 2300, 2300});
+
+        // Small Spacer
+        XWPFParagraph spacing = document.createParagraph();
+        spacing.setSpacingBefore(0);
+        spacing.setSpacingAfter(0);
+        XWPFRun spacerRun = spacing.createRun();
+        spacerRun.setFontSize(1);
+
+        // 3. Parent Table (2 rows x 2 cols)
+        XWPFTable parentTable = document.createTable(2, 2);
+        initializeTable(parentTable, 2, 2);
+        setTableWidth(parentTable, "100%");
+        setOuterTableBorders(parentTable);
+        parentTable.setCellMargins(0, 30, 0, 30);
+
+        XWPFTableCell leftCell = parentTable.getRow(0).getCell(0);
+        XWPFTableCell rightCell = parentTable.getRow(0).getCell(1);
+        XWPFTableCell leftCellSig = parentTable.getRow(1).getCell(0);
+        XWPFTableCell rightCellSig = parentTable.getRow(1).getCell(1);
+
+        leftCell.setWidth("8000");
+        rightCell.setWidth("7400");
+        leftCellSig.setWidth("8000");
+        rightCellSig.setWidth("7400");
+
+        // --- LEFT COLUMN: Subject Tables ---
+        XWPFParagraph titlePara = leftCell.getParagraphs().isEmpty() ? leftCell.addParagraph() : leftCell.getParagraphs().get(0);
+        addParagraph(titlePara, "Detail of Subjects Valued (Issue Reg. Pg.No: "
+            + (record.getIssueRegPageNo() != null ? record.getIssueRegPageNo() : "1") + ")", 9, true, ParagraphAlignment.CENTER);
+
+        // Nested 1x2 layout table for side-by-side FN and AN tables
+        XWPFTable fnAnParent = createNestedTable(leftCell, 1, 2);
+        setTableWidth(fnAnParent, "100%");
+        clearTableBorders(fnAnParent);
+        fnAnParent.setCellMargins(0, 0, 0, 0);
+
+        XWPFTableCell fnCell = fnAnParent.getRow(0).getCell(0);
+        XWPFTableCell anCell = fnAnParent.getRow(0).getCell(1);
+        fnCell.setWidth("4000");
+        anCell.setWidth("4000");
+
+        // FN Table (17 rows: Header + SubHeaders + 15 Data Rows)
+        XWPFTable fnTable = createNestedTable(fnCell, 17, 3);
+        setTableWidth(fnTable, "100%");
+        setTableBorders(fnTable);
+        fnTable.setCellMargins(0, 10, 0, 10);
+        populateScriptTable(fnTable, record, "FN");
+
+        // AN Table (17 rows: Header + SubHeaders + 15 Data Rows)
+        XWPFTable anTable = createNestedTable(anCell, 17, 3);
+        setTableWidth(anTable, "100%");
+        setTableBorders(anTable);
+        anTable.setCellMargins(0, 10, 0, 10);
+        populateScriptTable(anTable, record, "AN");
+
+        // --- RIGHT COLUMN: Detail of Claim Amount ---
+        XWPFParagraph amtTitle = rightCell.getParagraphs().isEmpty() ? rightCell.addParagraph() : rightCell.getParagraphs().get(0);
+        addParagraph(amtTitle, "Detail of Claim Amount", 10, true, ParagraphAlignment.CENTER);
+
+        // Claim Amount Table: 4 rows x 2 cols (Description | Rate & Amount)
+        XWPFTable ct = createNestedTable(rightCell, 4, 2);
+        setTableWidth(ct, "100%");
+        setTableBorders(ct);
+        ct.setCellMargins(10, 30, 10, 30);
+
+        // Row 0: Script Amount
+        formatCellMultiline(ct.getRow(0).getCell(0), "Script Amount (Rs.)\n(" + (record.getTotalScripts() != null ? record.getTotalScripts() : 0) + " Scripts)", true, 8, null, ParagraphAlignment.LEFT);
+        formatCellMultiline(ct.getRow(0).getCell(1), "UG and PG : 30/script\n(Min. Rs.100/- per subject)\nRs. " + formatAmount(record.getScriptAmount()), false, 7, null, ParagraphAlignment.LEFT);
+
+        // Row 1: Travelling Allowance
+        BigDecimal distanceKm = record.getDistanceKm() != null ? record.getDistanceKm() : BigDecimal.ZERO;
+        BigDecimal roundTrip = distanceKm.multiply(new BigDecimal("2"));
+        formatCellMultiline(ct.getRow(1).getCell(0), "Travelling Allowance (Rs.)\n(" + roundTrip.intValue() + " Km)", true, 8, null, ParagraphAlignment.LEFT);
+        formatCellMultiline(ct.getRow(1).getCell(1), "Rs. 8/Km (To and Fro)\nRs. 150 (Up to 35 Km)\nRs. " + formatAmount(record.getTravellingAllowance()), false, 7, null, ParagraphAlignment.LEFT);
+
+        // Row 2: Dearness Allowance
+        formatCellMultiline(ct.getRow(2).getCell(0), "Dearness Allowance (Rs.)\n(Session: " + (record.getSessionsAttended() != null ? record.getSessionsAttended() : "Only AN") + "; Int./Ext. : " + (record.getFacultyType() != null ? record.getFacultyType() : "INT.") + ")", true, 7, null, ParagraphAlignment.LEFT);
+        formatCellMultiline(ct.getRow(2).getCell(1), "Rs.300/Day\nRs. 250/Session\nRs. " + formatAmount(record.getDearnessAllowance()), false, 7, null, ParagraphAlignment.LEFT);
+
+        // Row 3: Total Amount
+        formatCell(ct.getRow(3).getCell(0), "Total Amount (Rs.)", true, 9, null, ParagraphAlignment.LEFT);
+        formatCell(ct.getRow(3).getCell(1), "Rs. " + formatAmount(record.getTotalAmount()), true, 9, null, ParagraphAlignment.RIGHT);
+
+        setRowColWidths(ct, new int[]{3400, 4000});
+
+        // Received Line below table
+        XWPFParagraph wordsPara = rightCell.addParagraph();
+        wordsPara.setSpacingBefore(3);
+        wordsPara.setSpacingAfter(0);
+        addParagraph(wordsPara, AmountToWordsConverter.formatReceivedLine(record.getTotalAmount()), 8, false, ParagraphAlignment.LEFT);
+
+        // Signature on bottom right
+        rightCellSig.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.BOTTOM);
+        XWPFParagraph sigTextPara = rightCellSig.getParagraphs().isEmpty() ? rightCellSig.addParagraph() : rightCellSig.getParagraphs().get(0);
+        sigTextPara.setSpacingBefore(0);
+        sigTextPara.setSpacingAfter(0);
+        addParagraph(sigTextPara, "Signature of the Examiner", 9, true, ParagraphAlignment.CENTER);
+
+        XWPFParagraph stampPara = rightCellSig.addParagraph();
+        stampPara.setSpacingBefore(0);
+        stampPara.setSpacingAfter(0);
+        addParagraph(stampPara, "(Re. 1/-Revenue Stamp to be affixed if the claim above Rs. 5000/-)", 6, false, ParagraphAlignment.CENTER);
+
+        // 4. Bank Details Table (4 rows x 3 cols with merged Chief Examiner sig)
+        addBankDetails(document, record);
+    }
+
+    private void formatCellMultiline(XWPFTableCell cell, String text, boolean bold, int fontSize, String bgColor, ParagraphAlignment alignment) {
+        if (bgColor != null) {
+            cell.setColor(bgColor);
+        }
+        while (cell.getParagraphs().size() > 1) {
+            cell.removeParagraph(1);
+        }
+        XWPFParagraph para = cell.getParagraphs().get(0);
+        para.setAlignment(alignment);
+        para.setSpacingBefore(0);
+        para.setSpacingAfter(0);
+
+        for (int i = para.getRuns().size() - 1; i >= 0; i--) {
+            para.removeRun(i);
+        }
+
+        if (text != null && text.contains("\n")) {
+            String[] lines = text.split("\n");
+            for (int i = 0; i < lines.length; i++) {
+                if (i > 0) {
+                    para = cell.addParagraph();
+                    para.setAlignment(alignment);
+                    para.setSpacingBefore(0);
+                    para.setSpacingAfter(0);
+                }
+                XWPFRun run = para.createRun();
+                run.setText(lines[i]);
+                run.setBold(bold);
+                run.setFontSize(fontSize);
+                run.setFontFamily("Times New Roman");
+            }
+        } else {
+            XWPFRun run = para.createRun();
+            run.setText(text != null && !text.isEmpty() ? text : " ");
+            run.setBold(bold);
+            run.setFontSize(fontSize);
+            run.setFontFamily("Times New Roman");
+        }
     }
 
     // ==================== HELPER METHODS ====================
@@ -776,17 +980,22 @@ public class WordGeneratorService {
             .filter(d -> sessionType.equalsIgnoreCase(d.getSessionType()))
             .collect(Collectors.toList());
 
+        boolean isRev = record.isRevaluation();
+        int headerFs = isRev ? 8 : 10;
+        int subHeaderFs = isRev ? 8 : 10;
+        int dataFs = isRev ? 7 : 10;
+
         // Row 0: Merged cell for FN/AN
         mergeCellsHorizontal(table, 0, 0, 2);
-        formatCell(table.getRow(0).getCell(0), sessionType, true, 10, null, ParagraphAlignment.CENTER);
+        formatCell(table.getRow(0).getCell(0), sessionType, true, headerFs, null, ParagraphAlignment.CENTER);
 
         // Row 1: Headers
-        formatCell(table.getRow(1).getCell(0), "S.N.", true, 10, null, ParagraphAlignment.CENTER);
-        formatCell(table.getRow(1).getCell(1), "Subject Code", true, 10, null, ParagraphAlignment.CENTER);
-        formatCell(table.getRow(1).getCell(2), "No. of Scripts", true, 10, null, ParagraphAlignment.CENTER);
+        formatCell(table.getRow(1).getCell(0), "S.N.", true, subHeaderFs, null, ParagraphAlignment.CENTER);
+        formatCell(table.getRow(1).getCell(1), "Subject Code", true, subHeaderFs, null, ParagraphAlignment.CENTER);
+        formatCell(table.getRow(1).getCell(2), "No. of Scripts", true, subHeaderFs, null, ParagraphAlignment.CENTER);
 
         // Display 15 rows for revaluation or 10 rows for standard evaluation
-        int rowCount = record.isRevaluation() ? 15 : 10;
+        int rowCount = isRev ? 15 : 10;
         for (int i = 0; i < rowCount; i++) {
             XWPFTableRow row = table.getRow(i + 2);
             String sn = String.valueOf(i + 1);
@@ -799,9 +1008,9 @@ public class WordGeneratorService {
                     ? String.valueOf(details.get(i).getNoOfScripts()) : "";
             }
 
-            formatCell(row.getCell(0), sn, false, 10, null, ParagraphAlignment.CENTER);
-            formatCell(row.getCell(1), code, false, 10, null, ParagraphAlignment.CENTER);
-            formatCell(row.getCell(2), scripts, false, 10, null, ParagraphAlignment.CENTER);
+            formatCell(row.getCell(0), sn, false, dataFs, null, ParagraphAlignment.CENTER);
+            formatCell(row.getCell(1), code, false, dataFs, null, ParagraphAlignment.CENTER);
+            formatCell(row.getCell(2), scripts, false, dataFs, null, ParagraphAlignment.CENTER);
         }
 
         // Set column widths (Total 4000 twips)

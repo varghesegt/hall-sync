@@ -1,437 +1,434 @@
 """
-Exact Revaluation Claim Form Generator for KRCE COE Office
-Generates: KRCE_ESE_Revaluation_Dec_2025_A4_Landscape_15_FN_AN_FINAL.docx
-- A4 Landscape layout matching the exact scanned form
-- 15 rows in both FN and AN subject tables
-- Exact logo placement, titles, borders, calculation details, bank table, and signatures
+EXACT Revaluation Claim Form Generator — K.RAMAKRISHNAN COLLEGE OF ENGINEERING
+Pixel-perfect A4 Landscape recreation matching the official scanned sample.
+
+Layout:
+  +------------------------------------------------------------------+
+  | [LOGO]  Office of the Controller of Examinations                  |
+  |         K.RAMAKRISHNAN COLLEGE OF ENGINEERING (Autonomous)        |
+  |         ESE - Re-Valuation - DEC 2025 Examinations               |
+  +------------------------------------------------------------------+
+  | Post Held EXAMINER | Date of Valuation | Name | Mobile | Desig.  |
+  | Name of Institution |                        | Board             |
+  +------------------------------------------------------------------+
+  | Detail of Subjects Valued     | Detail of Claim Amount           |
+  | FN: S.N.|SubCode|Scripts      |                                  |
+  | AN: S.N.|SubCode|Scripts      | Script Amt / TA / DA / Total    |
+  |                               | Received Rs. xxx/-              |
+  |                               | Signature of the Examiner       |
+  +------------------------------------------------------------------+
+  | ACCOUNT NUMBER: | IFSC CODE:  | Signature of Chief Examiner     |
+  | BANK NAME:      | BRANCH:     |                                  |
+  +------------------------------------------------------------------+
 """
 
 import os
 from docx import Document
-from docx.shared import Inches, Pt, Cm, RGBColor
+from docx.shared import Pt, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.section import WD_ORIENT, WD_SECTION_START
+from docx.enum.section import WD_ORIENT
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
-from docx.oxml.ns import qn, nsdecls
-from docx.oxml import parse_xml, OxmlElement
+from docx.oxml.ns import nsdecls
+from docx.oxml import parse_xml
 
-NUM_ROWS = 15  # 15 serial number rows in each FN and AN table
+NUM_ROWS = 15  # User requested 15 rows in FN and AN
+
+# ──── Helper Functions ────────────────────────────────────────────────
 
 def set_cell_border(cell, **kwargs):
-    """Set individual cell borders."""
     tcPr = cell._tc.get_or_add_tcPr()
     tcBorders = parse_xml(f'<w:tcBorders {nsdecls("w")}></w:tcBorders>')
     for edge, attrs in kwargs.items():
         element = parse_xml(
-            f'<w:{edge} {nsdecls("w")} w:val="{attrs.get("val", "single")}" '
-            f'w:sz="{attrs.get("sz", 4)}" w:space="0" w:color="{attrs.get("color", "000000")}"/>'
-        )
+            f'<w:{edge} {nsdecls("w")} w:val="{attrs.get("val","single")}" '
+            f'w:sz="{attrs.get("sz",4)}" w:space="0" w:color="{attrs.get("color","000000")}"/>')
         tcBorders.append(element)
     tcPr.append(tcBorders)
 
-def set_cell_shading(cell, color):
-    """Set background fill color for cell."""
-    shading_elm = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{color}"/>')
-    cell._tc.get_or_add_tcPr().append(shading_elm)
+def all_borders(cell, sz=4):
+    set_cell_border(cell,
+        top={"sz":sz,"val":"single"}, bottom={"sz":sz,"val":"single"},
+        start={"sz":sz,"val":"single"}, end={"sz":sz,"val":"single"})
 
-def set_cell_width(cell, width_cm):
-    """Set cell width in cm."""
-    cell.width = Cm(width_cm)
+def no_borders(cell):
+    set_cell_border(cell,
+        top={"sz":0,"val":"none"}, bottom={"sz":0,"val":"none"},
+        start={"sz":0,"val":"none"}, end={"sz":0,"val":"none"})
 
-def fmt_cell(cell, text, bold=False, italic=False, size=8, alignment=WD_ALIGN_PARAGRAPH.CENTER, font_name='Times New Roman', space_after=0):
-    """Format cell text and alignment cleanly."""
+def set_row_height(row, cm):
+    trPr = row._tr.get_or_add_trPr()
+    trPr.append(parse_xml(f'<w:trHeight {nsdecls("w")} w:val="{int(cm*567)}" w:hRule="atLeast"/>'))
+
+def set_cell_width(cell, cm):
+    cell.width = Cm(cm)
+
+def fmt(cell, text, bold=False, italic=False, sz=9, align=WD_ALIGN_PARAGRAPH.CENTER, font='Times New Roman'):
+    """Write text into a cell, supporting \\n for multi-line."""
     cell.text = ""
-    p = cell.paragraphs[0]
-    p.alignment = alignment
-    p.paragraph_format.space_before = Pt(0)
-    p.paragraph_format.space_after = Pt(space_after)
-    p.paragraph_format.line_spacing = Pt(10)
-    
-    if text:
-        lines = str(text).split('\n')
-        for i, line in enumerate(lines):
-            if i > 0:
-                p = cell.add_paragraph()
-                p.alignment = alignment
-                p.paragraph_format.space_before = Pt(0)
-                p.paragraph_format.space_after = Pt(space_after)
-                p.paragraph_format.line_spacing = Pt(10)
-            run = p.add_run(line)
-            run.font.size = Pt(size)
-            run.font.bold = bold
-            run.font.italic = italic
-            run.font.name = font_name
-            
+    lines = str(text).split('\n') if text else [""]
+    for i, line in enumerate(lines):
+        p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
+        p.alignment = align
+        pf = p.paragraph_format
+        pf.space_before = Pt(0)
+        pf.space_after = Pt(0)
+        pf.line_spacing = Pt(sz + 2)
+        run = p.add_run(line)
+        run.font.size = Pt(sz)
+        run.font.bold = bold
+        run.font.italic = italic
+        run.font.name = font
     cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-def add_bordered_table(doc, rows, cols):
-    """Create a table with standard 0.5pt single black borders."""
-    table = doc.add_table(rows=rows, cols=cols)
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    for row in table.rows:
-        for cell in row.cells:
-            set_cell_border(
-                cell,
-                top={"sz": 4, "val": "single"},
-                bottom={"sz": 4, "val": "single"},
-                start={"sz": 4, "val": "single"},
-                end={"sz": 4, "val": "single"},
-            )
-    return table
+def add_para(container, text, sz=9, bold=False, italic=False, align=WD_ALIGN_PARAGRAPH.CENTER,
+             underline=False, font='Times New Roman', space_before=0, space_after=0):
+    """Add a paragraph to a document or cell."""
+    p = container.add_paragraph() if hasattr(container, 'add_paragraph') else container.paragraphs[0]
+    if not hasattr(container, 'add_paragraph'):
+        p = container.add_paragraph()
+    p.alignment = align
+    p.paragraph_format.space_before = Pt(space_before)
+    p.paragraph_format.space_after = Pt(space_after)
+    run = p.add_run(text)
+    run.font.size = Pt(sz)
+    run.font.bold = bold
+    run.font.italic = italic
+    run.font.name = font
+    if underline:
+        run.font.underline = True
+    return p
 
-def set_row_height(row, height_cm):
-    """Set row height."""
-    trPr = row._tr.get_or_add_trPr()
-    trHeight = parse_xml(f'<w:trHeight {nsdecls("w")} w:val="{int(height_cm * 567)}" w:hRule="atLeast"/>')
-    trPr.append(trHeight)
+def vmerge_restart(cell):
+    tcPr = cell._tc.get_or_add_tcPr()
+    tcPr.append(parse_xml(f'<w:vMerge {nsdecls("w")} w:val="restart"/>'))
 
-def generate_exact_revaluation_docx(output_path):
+def vmerge_continue(cell):
+    tcPr = cell._tc.get_or_add_tcPr()
+    tcPr.append(parse_xml(f'<w:vMerge {nsdecls("w")} w:val="continue"/>'))
+
+# ──── Main Generator ──────────────────────────────────────────────────
+
+def generate(output_path):
     doc = Document()
 
-    # --- Page setup: A4 Landscape ---
-    section = doc.sections[0]
-    section.orientation = WD_ORIENT.LANDSCAPE
-    section.page_width = Cm(29.7)
-    section.page_height = Cm(21.0)
-    section.top_margin = Cm(0.8)
-    section.bottom_margin = Cm(0.8)
-    section.left_margin = Cm(1.0)
-    section.right_margin = Cm(1.0)
+    # ── Page Setup: A4 Landscape ──
+    sec = doc.sections[0]
+    sec.orientation = WD_ORIENT.LANDSCAPE
+    sec.page_width = Cm(29.7)
+    sec.page_height = Cm(21.0)
+    sec.top_margin = Cm(0.6)
+    sec.bottom_margin = Cm(0.5)
+    sec.left_margin = Cm(0.8)
+    sec.right_margin = Cm(0.8)
 
-    # =========================================================================
-    # HEADER SECTION (Table with Logo & Title)
-    # =========================================================================
-    header_table = doc.add_table(rows=1, cols=2)
-    header_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    header_table.autofit = False
+    FONT = 'Times New Roman'
 
-    # Left cell: Logo + College Info
-    c0 = header_table.rows[0].cells[0]
-    c0.width = Cm(20.0)
-    
-    p = c0.paragraphs[0]
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_before = Pt(0)
-    p.paragraph_format.space_after = Pt(1)
+    # ══════════════════════════════════════════════════════════════════════
+    # 1. HEADER: Logo + Title (borderless 1×2 table)
+    # ══════════════════════════════════════════════════════════════════════
+    hdr = doc.add_table(rows=1, cols=2)
+    hdr.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for c in hdr.rows[0].cells: no_borders(c)
 
-    # Embed logo if available
+    # Left cell: Logo
+    logo_cell = hdr.rows[0].cells[0]
+    logo_cell.width = Cm(2.2)
     logo_path = os.path.join(os.path.dirname(output_path), "src", "main", "resources", "logo1.png")
+    p_logo = logo_cell.paragraphs[0]
+    p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
     if os.path.exists(logo_path):
         try:
-            run_img = p.add_run()
-            run_img.add_picture(logo_path, width=Cm(1.4))
+            p_logo.add_run().add_picture(logo_path, width=Cm(1.6))
         except Exception:
             pass
 
-    r = p.add_run("\nOffice of the Controller of Examinations")
-    r.font.size = Pt(12)
-    r.font.bold = True
-    r.font.name = 'Times New Roman'
+    # Right cell: Title text
+    title_cell = hdr.rows[0].cells[1]
+    title_cell.width = Cm(25.7)
 
-    p2 = c0.add_paragraph()
+    p0 = title_cell.paragraphs[0]
+    p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p0.paragraph_format.space_after = Pt(0)
+    r = p0.add_run("Office of the Controller of Examinations")
+    r.font.size = Pt(16); r.font.bold = True; r.font.name = FONT
+
+    p1 = title_cell.add_paragraph()
+    p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p1.paragraph_format.space_before = Pt(1); p1.paragraph_format.space_after = Pt(0)
+    r = p1.add_run("K.RAMAKRISHNAN COLLEGE OF ENGINEERING")
+    r.font.size = Pt(14); r.font.bold = True; r.font.name = FONT
+
+    p2 = title_cell.add_paragraph()
     p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p2.paragraph_format.space_before = Pt(0)
-    p2.paragraph_format.space_after = Pt(0)
-    r = p2.add_run("K.RAMAKRISHNAN COLLEGE OF ENGINEERING")
-    r.font.size = Pt(13)
-    r.font.bold = True
-    r.font.name = 'Times New Roman'
+    p2.paragraph_format.space_before = Pt(0); p2.paragraph_format.space_after = Pt(0)
+    r = p2.add_run("(Autonomous)")
+    r.font.size = Pt(10); r.font.name = FONT
 
-    p3 = c0.add_paragraph()
+    p3 = title_cell.add_paragraph()
     p3.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p3.paragraph_format.space_before = Pt(0)
-    p3.paragraph_format.space_after = Pt(1)
-    r = p3.add_run("(Autonomous)")
-    r.font.size = Pt(10)
-    r.font.name = 'Times New Roman'
+    p3.paragraph_format.space_before = Pt(2); p3.paragraph_format.space_after = Pt(2)
+    r = p3.add_run("ESE - Re-Valuation - DEC 2025 Examinations")
+    r.font.size = Pt(11); r.font.bold = True; r.font.name = FONT; r.font.underline = True
 
-    p4 = c0.add_paragraph()
-    p4.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p4.paragraph_format.space_before = Pt(1)
-    p4.paragraph_format.space_after = Pt(2)
-    r = p4.add_run("ESE - Re-Valuation - DEC 2025 Examinations")
-    r.font.size = Pt(11)
-    r.font.bold = True
-    r.font.name = 'Times New Roman'
-    r.font.underline = True
+    p4 = title_cell.add_paragraph()
+    p4.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    p4.paragraph_format.space_before = Pt(1); p4.paragraph_format.space_after = Pt(2)
+    r = p4.add_run("No. of Sessions : Only AN")
+    r.font.size = Pt(9); r.font.bold = True; r.font.name = FONT
 
-    # Right cell: Date & Sessions metadata
-    c1 = header_table.rows[0].cells[1]
-    c1.width = Cm(7.7)
-    c1.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
-    
-    p_meta = c1.paragraphs[0]
-    p_meta.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    p_meta.paragraph_format.space_before = Pt(0)
-    p_meta.paragraph_format.space_after = Pt(2)
-    
-    r = p_meta.add_run("Date of Valuation(dd-mm-yyyy) : __________\n")
-    r.font.size = Pt(9)
-    r.font.bold = True
-    r.font.name = 'Times New Roman'
+    # ══════════════════════════════════════════════════════════════════════
+    # 2. PERSONAL DETAILS TABLE (bordered, 3 rows × 8 cols)
+    # ══════════════════════════════════════════════════════════════════════
+    info = doc.add_table(rows=3, cols=8)
+    info.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for row in info.rows:
+        for cell in row.cells:
+            all_borders(cell)
 
-    r2 = p_meta.add_run("No. of Sessions : Only AN")
-    r2.font.size = Pt(9)
-    r2.font.bold = True
-    r2.font.name = 'Times New Roman'
+    # Row 0: Post Held | EXAMINER | (merge 2-5) Date of Valuation
+    fmt(info.rows[0].cells[0], "Post Held", bold=True, sz=9)
+    fmt(info.rows[0].cells[1], "EXAMINER", bold=True, sz=9)
+    info.rows[0].cells[2].merge(info.rows[0].cells[5])
+    fmt(info.rows[0].cells[2], "Date of Valuation(dd.mm.yyyy) :", bold=True, sz=9,
+        align=WD_ALIGN_PARAGRAPH.LEFT)
+    info.rows[0].cells[6].merge(info.rows[0].cells[7])
+    fmt(info.rows[0].cells[6], "", sz=9)
 
-    # Remove borders from header_table
-    for cell in header_table.rows[0].cells:
-        set_cell_border(cell, top={"sz":0,"val":"none"}, bottom={"sz":0,"val":"none"}, start={"sz":0,"val":"none"}, end={"sz":0,"val":"none"})
+    # Row 1: Name | (blank) | Mobile Number | (blank) | Designation | PROFESSOR
+    fmt(info.rows[1].cells[0], "Name", bold=True, sz=9)
+    info.rows[1].cells[1].merge(info.rows[1].cells[2])
+    fmt(info.rows[1].cells[1], "", sz=9)
+    fmt(info.rows[1].cells[3], "Mobile Number", bold=True, sz=8)
+    info.rows[1].cells[4].merge(info.rows[1].cells[5])
+    fmt(info.rows[1].cells[4], "", sz=9)
+    fmt(info.rows[1].cells[6], "Designation", bold=True, sz=8)
+    fmt(info.rows[1].cells[7], "PROFESSOR", bold=True, sz=9)
 
-    # =========================================================================
-    # PERSONAL DETAILS TABLE
-    # =========================================================================
-    details_table = add_bordered_table(doc, 2, 8)
-    
-    # Row 0: Post Held, EXAMINER, Name, Mobile Number, Designation, PROFESSOR
-    fmt_cell(details_table.rows[0].cells[0], "Post Held", bold=True, size=8)
-    fmt_cell(details_table.rows[0].cells[1], "EXAMINER", bold=True, size=8)
-    fmt_cell(details_table.rows[0].cells[2], "Name", bold=True, size=8)
-    fmt_cell(details_table.rows[0].cells[3], "", size=8)
-    fmt_cell(details_table.rows[0].cells[4], "Mobile Number", bold=True, size=8)
-    fmt_cell(details_table.rows[0].cells[5], "", size=8)
-    fmt_cell(details_table.rows[0].cells[6], "Designation", bold=True, size=8)
-    fmt_cell(details_table.rows[0].cells[7], "PROFESSOR", bold=True, size=8)
+    # Row 2: Name of Institution | (merge 1-5 blank) | Board | (blank)
+    fmt(info.rows[2].cells[0], "Name of Institution", bold=True, sz=8)
+    info.rows[2].cells[1].merge(info.rows[2].cells[5])
+    fmt(info.rows[2].cells[1], "", sz=9)
+    fmt(info.rows[2].cells[6], "Board", bold=True, sz=9)
+    fmt(info.rows[2].cells[7], "", sz=9)
 
-    # Row 1: Name of Institution, Board
-    fmt_cell(details_table.rows[1].cells[0], "Name of Institution", bold=True, size=8)
-    details_table.rows[1].cells[1].merge(details_table.rows[1].cells[5])
-    fmt_cell(details_table.rows[1].cells[1], "", size=8)
-    fmt_cell(details_table.rows[1].cells[6], "Board", bold=True, size=8)
-    fmt_cell(details_table.rows[1].cells[7], "", size=8)
+    # Row heights
+    for row in info.rows:
+        set_row_height(row, 0.55)
 
-    set_row_height(details_table.rows[0], 0.55)
-    set_row_height(details_table.rows[1], 0.55)
+    # ══════════════════════════════════════════════════════════════════════
+    # 3. MAIN BODY: Parent bordered table (2 rows × 2 cols)
+    #    Row 0: LEFT = Subjects | RIGHT = Claim Amount
+    #    Row 1: LEFT = (empty) | RIGHT = Signature
+    # ══════════════════════════════════════════════════════════════════════
+    parent = doc.add_table(rows=2, cols=2)
+    parent.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for row in parent.rows:
+        for cell in row.cells:
+            all_borders(cell)
 
-    # Column widths for details table
-    col_widths_details = [2.6, 2.5, 1.8, 5.0, 2.8, 3.2, 2.3, 2.5]
-    for row in details_table.rows:
-        for idx, w in enumerate(col_widths_details):
-            if idx < len(row.cells):
-                set_cell_width(row.cells[idx], w)
+    left = parent.rows[0].cells[0]
+    right = parent.rows[0].cells[1]
+    left_sig = parent.rows[1].cells[0]
+    right_sig = parent.rows[1].cells[1]
+    left.width = Cm(14.5)
+    right.width = Cm(13.3)
+    left_sig.width = Cm(14.5)
+    right_sig.width = Cm(13.3)
 
-    # Spacer
-    p_sp = doc.add_paragraph()
-    p_sp.paragraph_format.space_before = Pt(3)
-    p_sp.paragraph_format.space_after = Pt(0)
+    # ── LEFT CELL: Subject Tables ──
 
-    # =========================================================================
-    # MAIN BODY: 2-COLUMN LANDSCAPE TABLE (Left: Subjects Table, Right: Claim Details)
-    # =========================================================================
-    body_table = doc.add_table(rows=1, cols=2)
-    body_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    body_table.autofit = False
-    
-    left_main = body_table.rows[0].cells[0]
-    right_main = body_table.rows[0].cells[1]
-    left_main.width = Cm(14.8)
-    right_main.width = Cm(12.8)
+    # Title
+    p_title = left.paragraphs[0]
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_title.paragraph_format.space_before = Pt(3)
+    p_title.paragraph_format.space_after = Pt(3)
+    r = p_title.add_run("Detail of Subjects Valued (Issue Reg. Pg.No: 1)")
+    r.font.size = Pt(10); r.font.bold = True; r.font.name = FONT; r.font.underline = True
 
-    set_cell_border(left_main, top={"sz":0,"val":"none"}, bottom={"sz":0,"val":"none"}, start={"sz":0,"val":"none"}, end={"sz":0,"val":"none"})
-    set_cell_border(right_main, top={"sz":0,"val":"none"}, bottom={"sz":0,"val":"none"}, start={"sz":0,"val":"none"}, end={"sz":0,"val":"none"})
+    # Create FN/AN side-by-side via a 1×2 borderless nested layout table
+    layout_tbl = doc.add_table(rows=1, cols=2)
+    layout_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for c in layout_tbl.rows[0].cells: no_borders(c)
+    # Move into left cell
+    left._tc.append(layout_tbl._tbl)
 
-    # -------------------------------------------------------------------------
-    # LEFT MAIN CELL: Detail of Subjects Valued (15 FN & 15 AN rows)
-    # -------------------------------------------------------------------------
-    p_subj_title = left_main.paragraphs[0]
-    p_subj_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_subj_title.paragraph_format.space_before = Pt(0)
-    p_subj_title.paragraph_format.space_after = Pt(3)
-    r = p_subj_title.add_run("Detail of Subjects Valued (Issue Reg. Pg.No: 1)")
-    r.font.size = Pt(9.5)
-    r.font.bold = True
-    r.font.name = 'Times New Roman'
-    r.font.underline = True
+    fn_container = layout_tbl.rows[0].cells[0]
+    an_container = layout_tbl.rows[0].cells[1]
+    fn_container.width = Cm(7.0)
+    an_container.width = Cm(7.0)
 
-    # 17 rows x 9 columns table (FN: 4 cols, Gap: 1 col, AN: 4 cols)
-    subj_table = add_bordered_table(doc, NUM_ROWS + 2, 9)
-    # Move table XML into left_main cell
-    left_main._tc.append(subj_table._tbl)
+    def build_script_table(container, session_label):
+        """Build a bordered FN or AN script table with 3 columns and NUM_ROWS data rows."""
+        # Session label
+        p_lbl = container.paragraphs[0] if container.paragraphs else container.add_paragraph()
+        p_lbl.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_lbl.paragraph_format.space_before = Pt(0)
+        p_lbl.paragraph_format.space_after = Pt(0)
 
-    # Row 0: FN (cols 0-3) and AN (cols 5-8)
-    subj_table.rows[0].cells[0].merge(subj_table.rows[0].cells[3])
-    fmt_cell(subj_table.rows[0].cells[0], "FN", bold=True, size=9)
-    set_cell_shading(subj_table.rows[0].cells[0], "F2F2F2")
+        # Create table: 1 header row + NUM_ROWS data rows = NUM_ROWS+2 (incl session label row)
+        tbl = doc.add_table(rows=NUM_ROWS + 2, cols=3)
+        tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+        for row in tbl.rows:
+            for cell in row.cells:
+                all_borders(cell)
 
-    fmt_cell(subj_table.rows[0].cells[4], "", size=6) # Gap cell
+        # Row 0: Session label (merge all 3 cols)
+        tbl.rows[0].cells[0].merge(tbl.rows[0].cells[2])
+        fmt(tbl.rows[0].cells[0], session_label, bold=True, sz=10)
+        set_row_height(tbl.rows[0], 0.4)
 
-    subj_table.rows[0].cells[5].merge(subj_table.rows[0].cells[8])
-    fmt_cell(subj_table.rows[0].cells[5], "AN", bold=True, size=9)
-    set_cell_shading(subj_table.rows[0].cells[5], "F2F2F2")
+        # Row 1: Column headers
+        fmt(tbl.rows[1].cells[0], "S.N.", bold=True, sz=8)
+        fmt(tbl.rows[1].cells[1], "Subject Code", bold=True, sz=8)
+        fmt(tbl.rows[1].cells[2], "No. of\nScripts", bold=True, sz=8)
+        set_row_height(tbl.rows[1], 0.5)
 
-    set_row_height(subj_table.rows[0], 0.45)
+        # Data rows
+        for i in range(NUM_ROWS):
+            row = tbl.rows[i + 2]
+            fmt(row.cells[0], str(i + 1), sz=8)
+            fmt(row.cells[1], "", sz=8)
+            fmt(row.cells[2], "", sz=8)
+            set_row_height(row, 0.38)
 
-    # Row 1: Column Headers
-    fn_headers = ["S.N.", "Subject Code", "No. of\nScripts", "Amount\n(Rs.)"]
-    an_headers = ["S.N.", "Subject Code", "No. of\nScripts", "Amount\n(Rs.)"]
+        # Column widths
+        for row in tbl.rows:
+            set_cell_width(row.cells[0], 1.0)
+            set_cell_width(row.cells[1], 3.8)
+            set_cell_width(row.cells[2], 1.8)
 
-    for i, h in enumerate(fn_headers):
-        fmt_cell(subj_table.rows[1].cells[i], h, bold=True, size=7.5)
-        set_cell_shading(subj_table.rows[1].cells[i], "FAFAFA")
+        container._tc.append(tbl._tbl)
 
-    fmt_cell(subj_table.rows[1].cells[4], "", size=6)
+    build_script_table(fn_container, "FN")
+    build_script_table(an_container, "AN")
 
-    for i, h in enumerate(an_headers):
-        fmt_cell(subj_table.rows[1].cells[5 + i], h, bold=True, size=7.5)
-        set_cell_shading(subj_table.rows[1].cells[5 + i], "FAFAFA")
+    # ── RIGHT CELL: Detail of Claim Amount ──
 
-    set_row_height(subj_table.rows[1], 0.5)
+    p_claim = right.paragraphs[0]
+    p_claim.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_claim.paragraph_format.space_before = Pt(3)
+    p_claim.paragraph_format.space_after = Pt(4)
+    r = p_claim.add_run("Detail of Claim Amount")
+    r.font.size = Pt(12); r.font.bold = True; r.font.name = FONT; r.font.underline = True
 
-    # Rows 2 to 16: Serial numbers 1 to 15
-    for r_idx in range(NUM_ROWS):
-        row = subj_table.rows[r_idx + 2]
-        # FN side
-        fmt_cell(row.cells[0], str(r_idx + 1), size=7.5)
-        fmt_cell(row.cells[1], "", size=7.5)
-        fmt_cell(row.cells[2], "", size=7.5)
-        fmt_cell(row.cells[3], "", size=7.5)
-
-        # Gap
-        fmt_cell(row.cells[4], "", size=6)
-
-        # AN side
-        fmt_cell(row.cells[5], str(r_idx + 1), size=7.5)
-        fmt_cell(row.cells[6], "", size=7.5)
-        fmt_cell(row.cells[7], "", size=7.5)
-        fmt_cell(row.cells[8], "", size=7.5)
-
-        set_row_height(row, 0.42)
-
-    # Widths for FN/AN columns (Total ~14.5 cm)
-    for row in subj_table.rows:
-        set_cell_width(row.cells[0], 0.9)   # S.N.
-        set_cell_width(row.cells[1], 2.8)   # Subject Code
-        set_cell_width(row.cells[2], 1.5)   # No of Scripts
-        set_cell_width(row.cells[3], 1.7)   # Amount
-        set_cell_width(row.cells[4], 0.3)   # Gap
-        set_cell_width(row.cells[5], 0.9)   # S.N.
-        set_cell_width(row.cells[6], 2.8)   # Subject Code
-        set_cell_width(row.cells[7], 1.5)   # No of Scripts
-        set_cell_width(row.cells[8], 1.7)   # Amount
-
-    # Remove top/bottom borders from gap column
-    for row in subj_table.rows:
-        set_cell_border(
-            row.cells[4],
-            top={"sz":0, "val":"none"},
-            bottom={"sz":0, "val":"none"},
-            start={"sz":4, "val":"single"},
-            end={"sz":4, "val":"single"}
-        )
-
-    # -------------------------------------------------------------------------
-    # RIGHT MAIN CELL: Detail of Claim Amount
-    # -------------------------------------------------------------------------
-    p_claim_title = right_main.paragraphs[0]
-    p_claim_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_claim_title.paragraph_format.space_before = Pt(0)
-    p_claim_title.paragraph_format.space_after = Pt(3)
-    r = p_claim_title.add_run("Detail of Claim Amount")
-    r.font.size = Pt(9.5)
-    r.font.bold = True
-    r.font.name = 'Times New Roman'
-    r.font.underline = True
-
-    # 4 rows x 3 columns claim calculation table
-    claim_tbl = add_bordered_table(doc, 4, 3)
-    right_main._tc.append(claim_tbl._tbl)
+    # Claim table: 4 rows × 2 cols (Description | Rate)
+    ct = doc.add_table(rows=4, cols=2)
+    ct.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for row in ct.rows:
+        for cell in row.cells:
+            all_borders(cell)
+    right._tc.append(ct._tbl)
 
     # Row 0: Script Amount
-    fmt_cell(claim_tbl.rows[0].cells[0], "Script Amount (Rs.)\n(8 Scripts)", bold=True, size=8, alignment=WD_ALIGN_PARAGRAPH.LEFT)
-    fmt_cell(claim_tbl.rows[0].cells[1], "UG and PG : 30/script\n(Min. Rs.100/- per subject)", size=7.5, alignment=WD_ALIGN_PARAGRAPH.CENTER)
-    fmt_cell(claim_tbl.rows[0].cells[2], "240", size=8.5, alignment=WD_ALIGN_PARAGRAPH.RIGHT)
+    fmt(ct.rows[0].cells[0], "Script Amount (Rs.)\n(8 Scripts)", bold=True, sz=9,
+        align=WD_ALIGN_PARAGRAPH.LEFT)
+    fmt(ct.rows[0].cells[1], "UG and PG : 30/script\n(Min. Rs.100/- per subject)", sz=8.5,
+        align=WD_ALIGN_PARAGRAPH.LEFT)
 
     # Row 1: Travelling Allowance
-    fmt_cell(claim_tbl.rows[1].cells[0], "Travelling Allowance (Rs.)\n(0 Km)", bold=True, size=8, alignment=WD_ALIGN_PARAGRAPH.LEFT)
-    fmt_cell(claim_tbl.rows[1].cells[1], "Rs. 8/Km (To and Fro)\nRs. 150 (Up to 35 Km)", size=7.5, alignment=WD_ALIGN_PARAGRAPH.CENTER)
-    fmt_cell(claim_tbl.rows[1].cells[2], "0", size=8.5, alignment=WD_ALIGN_PARAGRAPH.RIGHT)
+    fmt(ct.rows[1].cells[0], "Travelling Allowance (Rs.)\n(0 Km)", bold=True, sz=9,
+        align=WD_ALIGN_PARAGRAPH.LEFT)
+    fmt(ct.rows[1].cells[1], "Rs. 8/Km (To and Fro)\nRs. 150 (Up to 35 Km)", sz=8.5,
+        align=WD_ALIGN_PARAGRAPH.LEFT)
 
     # Row 2: Dearness Allowance
-    fmt_cell(claim_tbl.rows[2].cells[0], "Dearness Allowance (Rs.)\n(Session: Only AN; Int./Ext. : INT.)", bold=True, size=7.5, alignment=WD_ALIGN_PARAGRAPH.LEFT)
-    fmt_cell(claim_tbl.rows[2].cells[1], "Rs.300/Day\nRs. 250/Session", size=7.5, alignment=WD_ALIGN_PARAGRAPH.CENTER)
-    fmt_cell(claim_tbl.rows[2].cells[2], "250", size=8.5, alignment=WD_ALIGN_PARAGRAPH.RIGHT)
+    fmt(ct.rows[2].cells[0], "Dearness Allowance (Rs.)\n(Session Only AN: Int./Ext. : INT.)", bold=True, sz=8.5,
+        align=WD_ALIGN_PARAGRAPH.LEFT)
+    fmt(ct.rows[2].cells[1], "Rs.300/Day\nRs. 250/Session", sz=8.5,
+        align=WD_ALIGN_PARAGRAPH.LEFT)
 
-    # Row 3: Total Amount
-    fmt_cell(claim_tbl.rows[3].cells[0], "Total Amount (Rs.)", bold=True, size=9, alignment=WD_ALIGN_PARAGRAPH.LEFT)
-    set_cell_shading(claim_tbl.rows[3].cells[0], "FAFAFA")
+    # Row 3: Total Amount (bold, merged)
+    fmt(ct.rows[3].cells[0], "Total Amount (Rs.)", bold=True, sz=11,
+        align=WD_ALIGN_PARAGRAPH.LEFT)
+    fmt(ct.rows[3].cells[1], "", sz=9)
 
-    claim_tbl.rows[3].cells[1].merge(claim_tbl.rows[3].cells[2])
-    fmt_cell(claim_tbl.rows[3].cells[1], "Received Rs. 490/- (Rupees Four Hundred Ninety Only)", bold=True, size=8, alignment=WD_ALIGN_PARAGRAPH.LEFT)
+    # Column widths and row heights
+    for row in ct.rows:
+        set_cell_width(row.cells[0], 6.0)
+        set_cell_width(row.cells[1], 6.5)
+        set_row_height(row, 0.9)
 
-    for row in claim_tbl.rows:
-        set_cell_width(row.cells[0], 5.2)
-        set_cell_width(row.cells[1], 5.2)
-        if len(row.cells) > 2:
-            set_cell_width(row.cells[2], 2.2)
-        set_row_height(row, 0.75)
+    # Received line
+    p_recv = right.add_paragraph()
+    p_recv.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p_recv.paragraph_format.space_before = Pt(3)
+    p_recv.paragraph_format.space_after = Pt(0)
+    r = p_recv.add_run("Received Rs. 380/- (Rupees Three Hundred Eighty Only Only)")
+    r.font.size = Pt(9); r.font.bold = False; r.font.name = FONT
 
-    # Examiner Signature Section under Claim Table
-    p_sig_ex = right_main.add_paragraph()
-    p_sig_ex.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_sig_ex.paragraph_format.space_before = Pt(14)
-    p_sig_ex.paragraph_format.space_after = Pt(1)
-    r = p_sig_ex.add_run("Signature of the Examiner")
-    r.font.size = Pt(9)
-    r.font.bold = True
-    r.font.name = 'Times New Roman'
+    # ── RIGHT SIGNATURE CELL ──
+    right_sig.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
 
-    p_stamp = right_main.add_paragraph()
+    p_ex = right_sig.paragraphs[0]
+    p_ex.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_ex.paragraph_format.space_before = Pt(12)
+    p_ex.paragraph_format.space_after = Pt(1)
+    r = p_ex.add_run("Signature of the Examiner")
+    r.font.size = Pt(10); r.font.bold = True; r.font.name = FONT
+
+    p_stamp = right_sig.add_paragraph()
     p_stamp.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_stamp.paragraph_format.space_before = Pt(0)
-    p_stamp.paragraph_format.space_after = Pt(6)
+    p_stamp.paragraph_format.space_after = Pt(2)
     r = p_stamp.add_run("(Re. 1/-Revenue Stamp to be affixed if the claim above Rs. 5000/-)")
-    r.font.size = Pt(7.5)
-    r.font.italic = True
-    r.font.name = 'Times New Roman'
+    r.font.size = Pt(7.5); r.font.italic = True; r.font.name = FONT
 
-    # =========================================================================
-    # BANK DETAILS & CHIEF EXAMINER SIGNATURE TABLE
-    # =========================================================================
-    p_sp2 = doc.add_paragraph()
-    p_sp2.paragraph_format.space_before = Pt(4)
-    p_sp2.paragraph_format.space_after = Pt(0)
+    # Left signature cell empty
+    fmt(left_sig, "", sz=6)
 
-    bank_table = add_bordered_table(doc, 4, 3)
+    # ══════════════════════════════════════════════════════════════════════
+    # 4. BANK DETAILS TABLE (4 rows × 3 cols, col 3 vertically merged)
+    # ══════════════════════════════════════════════════════════════════════
+    bank = doc.add_table(rows=4, cols=3)
+    bank.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for row in bank.rows:
+        for cell in row.cells:
+            all_borders(cell)
 
-    # Vertical merge cell 2 (Chief Examiner Signature) across 4 rows
-    c_sig_top = bank_table.rows[0].cells[2]
-    tcPr = c_sig_top._tc.get_or_add_tcPr()
-    tcPr.append(parse_xml(f'<w:vMerge {nsdecls("w")} w:val="restart"/>'))
+    # Vertically merge col 2 (Chief Examiner signature)
+    vmerge_restart(bank.rows[0].cells[2])
+    for i in range(1, 4):
+        vmerge_continue(bank.rows[i].cells[2])
 
-    for r_i in range(1, 4):
-        c_merge = bank_table.rows[r_i].cells[2]
-        tcPr_m = c_merge._tc.get_or_add_tcPr()
-        tcPr_m.append(parse_xml(f'<w:vMerge {nsdecls("w")} w:val="continue"/>'))
-
-    # Bank rows
-    bank_info = [
+    labels = [
         ("ACCOUNT NUMBER :", ""),
         ("IFSC CODE :", ""),
         ("BANK NAME :", ""),
-        ("BRANCH :", "")
+        ("BRANCH :", ""),
     ]
+    for i, (lbl, val) in enumerate(labels):
+        fmt(bank.rows[i].cells[0], lbl, bold=True, sz=10, align=WD_ALIGN_PARAGRAPH.LEFT)
+        fmt(bank.rows[i].cells[1], val, sz=10, align=WD_ALIGN_PARAGRAPH.LEFT)
+        set_row_height(bank.rows[i], 0.55)
 
-    for idx, (label, val) in enumerate(bank_info):
-        fmt_cell(bank_table.rows[idx].cells[0], label, bold=True, size=8.5, alignment=WD_ALIGN_PARAGRAPH.LEFT)
-        fmt_cell(bank_table.rows[idx].cells[1], val, size=8.5, alignment=WD_ALIGN_PARAGRAPH.LEFT)
-        set_cell_shading(bank_table.rows[idx].cells[0], "FAFAFA")
-        set_row_height(bank_table.rows[idx], 0.55)
+    # Chief Examiner signature cell
+    sig_cell = bank.rows[0].cells[2]
+    sig_cell.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
+    p_chief = sig_cell.paragraphs[0]
+    p_chief.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_chief.paragraph_format.space_before = Pt(0)
+    p_chief.paragraph_format.space_after = Pt(4)
+    r = p_chief.add_run("Signature of the Chief Examiner")
+    r.font.size = Pt(10); r.font.bold = True; r.font.name = FONT
 
-    # Signature cell content
-    fmt_cell(c_sig_top, "\n\nSignature of the Chief Examiner", bold=True, size=9, alignment=WD_ALIGN_PARAGRAPH.CENTER)
-    c_sig_top.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
+    # Bank table column widths
+    for row in bank.rows:
+        set_cell_width(row.cells[0], 4.5)
+        set_cell_width(row.cells[1], 12.3)
+        set_cell_width(row.cells[2], 11.0)
 
-    # Column widths for Bank table
-    for r_i in range(4):
-        set_cell_width(bank_table.rows[r_i].cells[0], 4.2)
-        set_cell_width(bank_table.rows[r_i].cells[1], 13.5)
-        set_cell_width(bank_table.rows[r_i].cells[2], 9.8)
-
-    # Save document
+    # ══════════════════════════════════════════════════════════════════════
+    # SAVE
+    # ══════════════════════════════════════════════════════════════════════
     doc.save(output_path)
-    print(f"[OK] Generated document: {output_path}")
+    print(f"[OK] Exact revaluation form generated: {output_path}")
+    print(f"     FN: {NUM_ROWS} rows | AN: {NUM_ROWS} rows")
+    print(f"     3 columns per table: S.N., Subject Code, No. of Scripts")
+    print(f"     Layout: A4 Landscape, single bordered container")
 
 if __name__ == "__main__":
-    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "KRCE_ESE_Revaluation_Dec_2025_A4_Landscape_15_FN_AN_FINAL.docx")
-    generate_exact_revaluation_docx(out_path)
+    out = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "KRCE_ESE_Revaluation_Dec_2025_A4_Landscape_15_FN_AN_FINAL.docx"
+    )
+    generate(out)
