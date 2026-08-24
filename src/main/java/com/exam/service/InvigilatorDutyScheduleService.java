@@ -98,41 +98,41 @@ public class InvigilatorDutyScheduleService {
             // ═══════════════════ FONTS (BLACK & WHITE) ═══════════════════
             Font titleFont = workbook.createFont();
             titleFont.setFontName("Times New Roman");
-            titleFont.setFontHeightInPoints((short) 13);
+            titleFont.setFontHeightInPoints((short) 14);
             titleFont.setBold(true);
 
             Font collegeFont = workbook.createFont();
             collegeFont.setFontName("Times New Roman");
-            collegeFont.setFontHeightInPoints((short) 13);
+            collegeFont.setFontHeightInPoints((short) 14);
             collegeFont.setBold(true);
 
             Font subFont = workbook.createFont();
             subFont.setFontName("Times New Roman");
-            subFont.setFontHeightInPoints((short) 10);
+            subFont.setFontHeightInPoints((short) 12);
             subFont.setBold(true);
 
             Font metaFont = workbook.createFont();
             metaFont.setFontName("Times New Roman");
-            metaFont.setFontHeightInPoints((short) 10);
+            metaFont.setFontHeightInPoints((short) 12);
             metaFont.setBold(true);
 
             Font colHeaderFont = workbook.createFont();
             colHeaderFont.setFontName("Times New Roman");
-            colHeaderFont.setFontHeightInPoints((short) 10);
+            colHeaderFont.setFontHeightInPoints((short) 12);
             colHeaderFont.setBold(true);
 
             Font dataFont = workbook.createFont();
             dataFont.setFontName("Times New Roman");
-            dataFont.setFontHeightInPoints((short) 9.5);
+            dataFont.setFontHeightInPoints((short) 12);
 
             Font dataBoldFont = workbook.createFont();
             dataBoldFont.setFontName("Times New Roman");
-            dataBoldFont.setFontHeightInPoints((short) 9.5);
+            dataBoldFont.setFontHeightInPoints((short) 12);
             dataBoldFont.setBold(true);
 
             Font sigFont = workbook.createFont();
             sigFont.setFontName("Times New Roman");
-            sigFont.setFontHeightInPoints((short) 10);
+            sigFont.setFontHeightInPoints((short) 12);
             sigFont.setBold(true);
 
             // ═══════════════════ STYLES (BLACK & WHITE + GREY HEADINGS) ═══════════════════
@@ -281,8 +281,8 @@ public class InvigilatorDutyScheduleService {
                 int deptCount = hd.getDepartmentCount();
 
                 Row dataRow = sheet.createRow(rowNum++);
-                // Optimized compact row height to fit A4 Landscape perfectly: 14pt per line + 6pt padding
-                dataRow.setHeightInPoints(Math.max(25, deptCount * 14 + 6));
+                // Row height scaled for Times New Roman 12pt: 16pt per line + 8pt padding
+                dataRow.setHeightInPoints(Math.max(28, deptCount * 16 + 8));
 
                 // Col 0: S.No
                 Cell c0 = dataRow.createCell(0);

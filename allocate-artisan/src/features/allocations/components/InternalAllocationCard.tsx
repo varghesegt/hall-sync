@@ -115,8 +115,6 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
     trigger.mutate();
   };
 
-  const hasActiveBatch = status === "ACTIVE" && !!resolvedBatchId;
-
   return (
     <Card className={cn("transition-all duration-500 overflow-hidden glass-panel", disabled && !hasActiveBatch && "opacity-60")}>
       <CardHeader className="bg-slate-50/50 border-b border-slate-100/50 pb-5">
