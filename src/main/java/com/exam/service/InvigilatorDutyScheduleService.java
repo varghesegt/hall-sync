@@ -289,18 +289,17 @@ public class InvigilatorDutyScheduleService {
                 c0.setCellValue(sno++);
                 c0.setCellStyle(dataCenterStyle);
 
-                // Col 1: Staff Name (from duties if available, otherwise blank for manual fill)
+                // Col 1: Staff Name (Empty cell for manual staff allocation)
                 Cell c1 = dataRow.createCell(1);
-                InvigilatorDuty duty = hallDutyMap.get(hd.hallId);
-                c1.setCellValue(duty != null ? duty.getFaculty().getName() : "");
+                c1.setCellValue("");
                 c1.setCellStyle(dataBoldLeftStyle);
 
-                // Col 2: Dept (staff department if duty assigned, otherwise blank)
+                // Col 2: Dept (Empty cell for manual staff allocation)
                 Cell c2 = dataRow.createCell(2);
-                c2.setCellValue(duty != null ? duty.getFaculty().getDepartment() : "");
+                c2.setCellValue("");
                 c2.setCellStyle(dataCenterStyle);
 
-                // Col 3: Allotted Staff (blank for manual fill)
+                // Col 3: Allotted Staff (Empty cell for manual staff allocation)
                 Cell c3 = dataRow.createCell(3);
                 c3.setCellValue("");
                 c3.setCellStyle(dataCenterStyle);
