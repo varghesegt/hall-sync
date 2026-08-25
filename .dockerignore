@@ -1,23 +1,36 @@
+# Git & Configs
 .git
 .gitignore
 .env
-.env.example
+.env.local
+.env.*.local
 .gemini
+.idea
+.vscode
+
+# Build Outputs & Targets
 **/target
 **/*.jar
 **/*.war
+**/dist
+**/build
 **/*.log
 logs/
 uploads/
 scratch/
 data/
+
+# Dependencies
+**/node_modules
+**/.mvn
+
+# Media & Temp Files
 *.docx
 *.doc
 *.xlsx
 *.pdf
 *.py
-**/node_modules
-**/dist
+*.bat
 COE_USER_MANUAL.md
 README.md
 server_console.log
