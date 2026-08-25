@@ -45,7 +45,6 @@ export function AppSidebar({ settings }: { settings?: any }) {
     {
       label: "Masters & Settings",
       items: [
-        { title: "Faculty Master", url: "/dashboard/faculty", icon: Users },
         { title: "Hall Master", url: "/dashboard/halls", icon: Building },
         { title: "College Distance", url: "/dashboard/colleges", icon: MapPin },
         { title: "System Settings", url: "/dashboard/settings", icon: Settings }
