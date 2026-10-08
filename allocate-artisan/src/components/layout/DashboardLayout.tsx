@@ -20,7 +20,12 @@ export function DashboardLayout() {
     } catch (e) {
       console.warn("Logout API failed, continuing with local cleanup");
     } finally {
+      localStorage.removeItem("token");
       localStorage.removeItem("coe_auth");
+      localStorage.removeItem("user_email");
+      localStorage.removeItem("user_role");
+      localStorage.removeItem("tenant_id");
+      localStorage.removeItem("tenant");
       toast.success("Logged Out", { description: "Session closed successfully." });
       navigate("/login");
     }
@@ -28,7 +33,12 @@ export function DashboardLayout() {
 
   useEffect(() => {
     const handleUnauthorized = () => {
+      localStorage.removeItem("token");
       localStorage.removeItem("coe_auth");
+      localStorage.removeItem("user_email");
+      localStorage.removeItem("user_role");
+      localStorage.removeItem("tenant_id");
+      localStorage.removeItem("tenant");
       toast.error("Session Expired", { description: "Please log in again." });
       navigate("/login");
     };

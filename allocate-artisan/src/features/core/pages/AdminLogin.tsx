@@ -16,6 +16,7 @@ const AdminLogin = () => {
 
   React.useEffect(() => {
     localStorage.removeItem("token");
+    localStorage.removeItem("coe_auth");
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -37,13 +38,14 @@ const AdminLogin = () => {
       }
       
       const token = response.data.token;
+      localStorage.setItem("token", token);
       localStorage.setItem("coe_auth", token);
       localStorage.setItem("user_email", username);
       localStorage.setItem("user_role", response.data.role);
       
-      if (response.data.tenantId) {
-        localStorage.setItem("tenant_id", response.data.tenantId);
-      }
+      const activeTenant = response.data.tenantId || "krce";
+      localStorage.setItem("tenant_id", activeTenant);
+      localStorage.setItem("tenant", activeTenant);
       
       toast.success("Welcome, System Administrator", {
         description: `Logged in successfully to System Console.`,
@@ -52,6 +54,7 @@ const AdminLogin = () => {
       
       navigate("/admin");
     } catch (error: any) {
+      localStorage.removeItem("token");
       localStorage.removeItem("coe_auth");
       localStorage.removeItem("user_email");
       localStorage.removeItem("user_role");

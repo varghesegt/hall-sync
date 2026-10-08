@@ -183,7 +183,11 @@ export default function Settings() {
                   {formData.logoBase64 ? (
                     <img src={formData.logoBase64} alt="College Logo" className="w-full h-full object-contain p-2" />
                   ) : currentSettings?.isConfigured ? (
-                    <img src="/api/v1/settings/logo" alt="College Logo" className="w-full h-full object-contain p-2" />
+                    <img 
+                      src={`${import.meta.env.VITE_API_BASE_URL || "/api/v1"}/settings/logo?tenantId=${localStorage.getItem("tenant_id") || "krce"}`} 
+                      alt="College Logo" 
+                      className="w-full h-full object-contain p-2" 
+                    />
                   ) : (
                     <div className="text-slate-300 flex flex-col items-center">
                       <Upload size={32} />

@@ -52,7 +52,9 @@ export function AppSidebar({ settings }: { settings?: any }) {
     }
   ];
 
-  const logoSrc = settings?.isConfigured ? "/api/v1/settings/logo" : "/logo.png";
+  const apiBase = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+  const tenantId = localStorage.getItem("tenant_id") || localStorage.getItem("tenant") || "krce";
+  const logoSrc = settings?.isConfigured ? `${apiBase}/settings/logo?tenantId=${tenantId}` : "/logo.png";
   const collegeName = settings?.collegeName || "HallSync";
   const isDefaultLogo = !settings?.isConfigured;
 

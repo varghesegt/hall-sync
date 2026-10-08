@@ -20,8 +20,16 @@ public class TenantSettingsController {
     }
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> getSettings() {
+    public ResponseEntity<Map<String, Object>> getSettings(
+            @RequestParam(value = "tenantId", required = false) String paramTenantId,
+            @RequestHeader(value = "X-Tenant-ID", required = false) String headerTenantId) {
         String tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null || tenantId.isBlank()) {
+            tenantId = (paramTenantId != null && !paramTenantId.isBlank()) ? paramTenantId : headerTenantId;
+        }
+        if (tenantId == null || tenantId.isBlank()) {
+            tenantId = "krce";
+        }
         
         Optional<Tenant> tenantOpt;
         TenantContext.clear();
@@ -44,8 +52,16 @@ public class TenantSettingsController {
     }
 
     @GetMapping("/logo")
-    public ResponseEntity<byte[]> getLogo() {
+    public ResponseEntity<byte[]> getLogo(
+            @RequestParam(value = "tenantId", required = false) String paramTenantId,
+            @RequestHeader(value = "X-Tenant-ID", required = false) String headerTenantId) {
         String tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null || tenantId.isBlank()) {
+            tenantId = (paramTenantId != null && !paramTenantId.isBlank()) ? paramTenantId : headerTenantId;
+        }
+        if (tenantId == null || tenantId.isBlank()) {
+            tenantId = "krce";
+        }
         
         Optional<Tenant> tenantOpt;
         TenantContext.clear();

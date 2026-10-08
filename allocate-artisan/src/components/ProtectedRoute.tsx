@@ -8,9 +8,10 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
   const role = localStorage.getItem("user_role");
+  const token = localStorage.getItem("token") || localStorage.getItem("coe_auth");
   const location = useLocation();
 
-  if (!role) {
+  if (!role || !token) {
     if (location.pathname.startsWith("/admin")) {
       return <Navigate to="/admin-login" state={{ from: location }} replace />;
     }

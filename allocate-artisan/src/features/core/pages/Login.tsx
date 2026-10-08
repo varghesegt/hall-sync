@@ -17,6 +17,7 @@ const Login = () => {
 
   React.useEffect(() => {
     localStorage.removeItem("token");
+    localStorage.removeItem("coe_auth");
     apiClient.get("/auth/tenants")
       .then(res => {
         setTenants(res.data);
@@ -46,14 +47,15 @@ const Login = () => {
         return;
       }
       
-      // Store JWT token from response
+      // Store JWT token from response under both standard keys
+      localStorage.setItem("token", response.data.token);
       localStorage.setItem("coe_auth", response.data.token);
       localStorage.setItem("user_email", username);
       localStorage.setItem("user_role", response.data.role);
       
-      if (response.data.tenantId) {
-        localStorage.setItem("tenant_id", response.data.tenantId);
-      }
+      const activeTenant = response.data.tenantId || tenantId || "krce";
+      localStorage.setItem("tenant_id", activeTenant);
+      localStorage.setItem("tenant", activeTenant);
       
       toast.success("Login Successful", {
         description: `Welcome back, Controller of Examinations.`,
@@ -62,6 +64,8 @@ const Login = () => {
       
       navigate("/dashboard");
     } catch (error: any) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("coe_auth");
       localStorage.removeItem("user_email");
       localStorage.removeItem("user_role");
       toast.error("Authentication Failed", {

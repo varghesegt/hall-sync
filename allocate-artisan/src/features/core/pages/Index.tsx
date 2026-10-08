@@ -15,8 +15,11 @@ export default function Index() {
     } catch (e) {
       console.warn("Logout request failed", e);
     }
+    localStorage.removeItem("token");
+    localStorage.removeItem("coe_auth");
     localStorage.removeItem("user_role");
     localStorage.removeItem("tenant_id");
+    localStorage.removeItem("tenant");
     localStorage.removeItem("user_email");
     toast.success("Logged Out", {
       description: "Session closed successfully.",

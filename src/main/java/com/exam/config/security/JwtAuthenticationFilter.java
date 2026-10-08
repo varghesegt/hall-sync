@@ -81,6 +81,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         
+        // Fallback to X-Tenant-ID header if TenantContext was not set by JWT
+        String headerTenant = request.getHeader("X-Tenant-ID");
+        if (TenantContext.getCurrentTenant() == null && headerTenant != null && !headerTenant.isBlank()) {
+            TenantContext.setCurrentTenant(headerTenant.trim());
+        }
+        
         try {
             chain.doFilter(request, response);
         } finally {

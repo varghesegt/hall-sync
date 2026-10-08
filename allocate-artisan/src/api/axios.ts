@@ -10,8 +10,8 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  const tenant = localStorage.getItem("tenant") || "krce";
+  const token = localStorage.getItem("token") || localStorage.getItem("coe_auth");
+  const tenant = localStorage.getItem("tenant_id") || localStorage.getItem("tenant") || "krce";
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -42,6 +42,12 @@ apiClient.interceptors.response.use(
       switch (status) {
         case 401:
           apiError.message = "Session expired. Please sign in again.";
+          localStorage.removeItem("token");
+          localStorage.removeItem("coe_auth");
+          localStorage.removeItem("user_role");
+          localStorage.removeItem("user_email");
+          localStorage.removeItem("tenant_id");
+          localStorage.removeItem("tenant");
           // Emit unauthorized event to trigger logout gracefully
           window.dispatchEvent(new Event("hallsync:unauthorized"));
           break;

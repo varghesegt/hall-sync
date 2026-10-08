@@ -86,7 +86,10 @@ export function CustomOrderDialog({ open, onOpenChange, facultyList, onFacultyCr
       return;
     }
 
-    let url = `/api/v1/appointments/order/${selectedFacultyId}?role=${encodeURIComponent(role)}`;
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+    const token = localStorage.getItem("token") || localStorage.getItem("coe_auth");
+    let url = `${apiBase}/appointments/order/${selectedFacultyId}?role=${encodeURIComponent(role)}`;
+    if (token) url += `&token=${encodeURIComponent(token)}`;
     if (season) url += `&season=${encodeURIComponent(season)}`;
     if (date) url += `&date=${encodeURIComponent(date)}`;
     if (board) url += `&board=${encodeURIComponent(board)}`;
