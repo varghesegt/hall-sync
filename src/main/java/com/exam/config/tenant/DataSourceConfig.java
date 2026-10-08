@@ -25,7 +25,8 @@ public class DataSourceConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(DataSourceConfig.class);
 
-    @Bean
+    @Bean(name = "masterDataSourceProperties")
+    @Primary
     @ConfigurationProperties("spring.datasource")
     public DataSourceProperties masterDataSourceProperties() {
         return new DataSourceProperties();
@@ -81,7 +82,7 @@ public class DataSourceConfig {
     }
 
     @Bean(name = "masterDataSource")
-    public DataSource masterDataSource(DataSourceProperties masterDataSourceProperties) {
+    public DataSource masterDataSource(@Qualifier("masterDataSourceProperties") DataSourceProperties masterDataSourceProperties) {
         normalizeDataSourceProperties(masterDataSourceProperties);
         return masterDataSourceProperties.initializeDataSourceBuilder().type(HikariDataSource.class).build();
     }
@@ -89,7 +90,7 @@ public class DataSourceConfig {
     @Bean
     @Primary
     public TenantRoutingDataSource dataSource(@Qualifier("masterDataSource") DataSource masterDataSource,
-                                              DataSourceProperties masterDataSourceProperties) {
+                                              @Qualifier("masterDataSourceProperties") DataSourceProperties masterDataSourceProperties) {
         normalizeDataSourceProperties(masterDataSourceProperties);
         TenantRoutingDataSource customDataSource = new TenantRoutingDataSource();
         customDataSource.setMasterDataSource(masterDataSource);

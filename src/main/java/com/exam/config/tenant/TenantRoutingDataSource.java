@@ -195,5 +195,19 @@ public class TenantRoutingDataSource extends AbstractRoutingDataSource {
     public int getActiveTenantPoolCount() {
         return targetDataSources.size() - 1; // Subtract MASTER
     }
+
+    @jakarta.annotation.PreDestroy
+    public void shutdown() {
+        try {
+            evictionScheduler.shutdownNow();
+        } catch (Exception ignored) {}
+        for (Object ds : targetDataSources.values()) {
+            if (ds instanceof HikariDataSource && ds != masterDataSource) {
+                try {
+                    ((HikariDataSource) ds).close();
+                } catch (Exception ignored) {}
+            }
+        }
+    }
 }
 

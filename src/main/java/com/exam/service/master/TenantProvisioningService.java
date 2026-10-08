@@ -28,7 +28,7 @@ public class TenantProvisioningService {
                                      UserRepository userRepository,
                                      PasswordEncoder passwordEncoder,
                                      JdbcTemplate jdbcTemplate,
-                                     DataSourceProperties masterProperties) {
+                                     @org.springframework.beans.factory.annotation.Qualifier("masterDataSourceProperties") DataSourceProperties masterProperties) {
         this.tenantRepository = tenantRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
