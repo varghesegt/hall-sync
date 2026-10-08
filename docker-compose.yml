@@ -38,16 +38,17 @@ services:
     networks:
       - hallsync-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispassword123}", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redispassword123}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # --- S3 Object Storage Service (MinIO) ---
   minio:
-    image: minio/minio:RELEASE.2024-04-18T19-09-19Z
+    image: cgr.dev/chainguard/minio:latest
     container_name: hallsync-minio
     restart: unless-stopped
+    user: "0:0"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -57,28 +58,11 @@ services:
     networks:
       - hallsync-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "/usr/bin/mc", "ready", "local"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # --- MinIO Bucket Initialization Job ---
-  createbuckets:
-    image: minio/mc
-    container_name: hallsync-minio-init
-    depends_on:
-      minio:
-        condition: service_healthy
-    networks:
-      - hallsync-network
-    entrypoint: >
-      /bin/sh -c "
-      sleep 2;
-      /usr/bin/mc config host add myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
-      /usr/bin/mc mb --ignore-existing myminio/hallsync-uploads;
-      /usr/bin/mc anonymous set public myminio/hallsync-uploads;
-      exit 0;
-      "
+      start_period: 10s
 
   # --- Backend Application Service (Spring Boot) ---
   app:
@@ -107,12 +91,14 @@ services:
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redispassword123}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-redispassword123}
       AWS_S3_ENDPOINT: http://minio:9000
       APP_AWS_S3_ENDPOINT: http://minio:9000
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
       JAVA_OPTS: >-
         -Xms512m -Xmx2048m 
         -XX:+UseG1GC 
@@ -127,6 +113,12 @@ services:
       - /app/data/parser-tmp:size=256M,mode=1777
     networks:
       - hallsync-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || curl -f http://localhost:8081/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     deploy:
       resources:
         limits:

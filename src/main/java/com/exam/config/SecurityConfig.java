@@ -45,11 +45,11 @@ public class SecurityConfig {
                 .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC, jakarta.servlet.DispatcherType.FORWARD, jakarta.servlet.DispatcherType.ERROR).permitAll()
                 .requestMatchers("/api/v1/auth/**", "/api/v1/tenant/current", "/api/v1/public/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow preflight
-                .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/manifest.json", "/error").permitAll() // Static UI & Error route
-                .requestMatchers("/api/v1/auth/**").permitAll() // Allow public auth routes
+                .requestMatchers(HttpMethod.GET, "/", "/index.html", "/assets/**", "/favicon.ico", "/manifest.json", "/error", "/*.png", "/*.ico", "/*.svg").permitAll() // Static UI & Error route
                 .requestMatchers("/api/v1/admin/**").hasRole("SUPER_ADMIN") // Secure admin routes strictly
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/api/**").authenticated()
+                .requestMatchers(request -> request.getServletPath() != null && !request.getServletPath().startsWith("/api/") && !request.getServletPath().startsWith("/actuator/")).permitAll() // SPA client routing
                 .anyRequest().authenticated()
             )
             .exceptionHandling(exceptions -> exceptions

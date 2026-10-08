@@ -36,16 +36,26 @@ if %ERRORLEVEL% EQU 0 (
 
 :: Check App Container
 echo.
-echo  [3/4] Checking Application Server...
-docker ps --filter "name=hallsync-app" --format "{{.Status}}" | findstr /I "Up" >nul 2>&1
+echo  [3/4] Checking Application Servers (Backend and Frontend)...
+docker ps --filter "name=hallsync-backend" --format "{{.Status}}" | findstr /I "Up" >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    docker ps --filter "name=hallsync-app" --format "{{.Status}}" | findstr /I "Up" >nul 2>&1
+)
 if %ERRORLEVEL% EQU 0 (
-    echo        ✓ Application server is running
+    echo        ✓ Backend application engine is running
 ) else (
-    echo        ✗ Application server is NOT running!
+    echo        ✗ Backend application server is NOT running!
     echo          → Run START.bat to start the system
     echo.
     pause
     exit /b 1
+)
+
+docker ps --filter "name=hallsync-frontend" --format "{{.Status}}" | findstr /I "Up" >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    echo        ✓ Frontend web server is running
+) else (
+    echo        ! Frontend web server not detected (Backend direct mode active)
 )
 
 :: Check Database Connection
@@ -85,8 +95,9 @@ echo  ╔═══════════════════════�
 echo  ║                                                           ║
 echo  ║   ALL SYSTEMS ARE HEALTHY ✓                               ║
 echo  ║                                                           ║
-echo  ║   Portal: http://localhost:8081                            ║
-echo  ║   Login:  coe1@krce.ac.in / skm@8115                      ║
+echo  ║   Portal (Web):  http://localhost:8080                    ║
+echo  ║   Direct API:    http://localhost:8081                    ║
+echo  ║   Login:         coe1@krce.ac.in / skm@8115               ║
 echo  ║                                                           ║
 echo  ╚═══════════════════════════════════════════════════════════╝
 echo.

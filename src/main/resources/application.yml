@@ -67,6 +67,11 @@ spring:
       max-file-size: 50MB
       max-request-size: 50MB
 
+management:
+  health:
+    mail:
+      enabled: false
+
 logging:
   level:
     org.springframework.security: INFO

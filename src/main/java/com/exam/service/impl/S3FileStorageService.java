@@ -26,6 +26,16 @@ public class S3FileStorageService {
         this.s3Client = s3Client;
     }
 
+    @jakarta.annotation.PostConstruct
+    public void initBucket() {
+        try {
+            s3Client.createBucket(b -> b.bucket(bucketName));
+            logger.info("Successfully verified/initialized S3/MinIO bucket '{}'", bucketName);
+        } catch (Exception e) {
+            logger.info("S3 bucket '{}' readiness notice: {}", bucketName, e.getMessage());
+        }
+    }
+
     /**
      * Uploads a raw byte array to local storage and S3.
      */

@@ -131,10 +131,18 @@ public class InternalExamSessionService {
         );
         sessionRepository.save(session);
 
-        List<Student> entities = students.stream()
+        // Defense-in-depth: Deduplicate by register number to ensure uq_student_session constraint is never violated
+        java.util.Map<String, StudentRow> uniqueMap = new java.util.LinkedHashMap<>();
+        for (StudentRow s : students) {
+            if (s.registerNumber() != null && !s.registerNumber().isBlank()) {
+                uniqueMap.putIfAbsent(s.registerNumber().trim().toUpperCase(), s);
+            }
+        }
+
+        List<Student> entities = uniqueMap.values().stream()
                 .map(s -> new Student(
                         UUID.randomUUID(), session,
-                        s.registerNumber(), s.studentName(),
+                        s.registerNumber().trim().toUpperCase(), s.studentName(),
                         s.department() != null ? s.department() : "UNRESOLVED",
                         s.className(), s.subjectName(), s.subjectCode(),
                         s.semester(), s.regulation()))

@@ -3,7 +3,8 @@ setlocal EnableDelayedExpansion
 title HallSync - Starting System
 
 :: --- CONFIGURATION ---
-set APP_URL=http://localhost:8081
+set APP_URL=http://localhost:8080
+set BACKEND_URL=http://localhost:8081
 set HEALTH_URL=%APP_URL%/
 set CHROME_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe"
 :: ---------------------
@@ -79,6 +80,9 @@ echo.
 echo  ╔═══════════════════════════════════════════════════════════╗
 echo  ║                                                           ║
 echo  ║   HallSync IS ONLINE AND READY!                           ║
+echo  ║                                                           ║
+echo  ║   Portal (Web):  http://localhost:8080                    ║
+echo  ║   Direct API:    http://localhost:8081                    ║
 echo  ║                                                           ║
 echo  ║   Login Credentials:                                      ║
 echo  ║     Username: coe1@krce.ac.in                             ║

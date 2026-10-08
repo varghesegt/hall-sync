@@ -209,6 +209,23 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(org.springframework.dao.DataIntegrityViolationException ex) {
+        logError("DataIntegrityViolationException", ex);
+        String detailMessage = "Database constraint violation occurred.";
+        if (ex.getMessage() != null && ex.getMessage().contains("uq_student_session")) {
+            detailMessage = "Duplicate student detected in the same exam session.";
+        }
+        ErrorResponse response = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                ErrorCode.DUPLICATE_FILE,
+                detailMessage,
+                Collections.singletonList(ex.getMessage()),
+                resolveId(ex)
+        );
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handle(Exception ex) {
         logger.error("ERROR:", ex);

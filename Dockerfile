@@ -22,7 +22,8 @@ RUN mvn dependency:go-offline -B || true
 # Copy backend source code
 COPY src ./src
 
-# Copy compiled SPA frontend dist into Spring Boot static resources
+# Clean stale static resources and copy fresh compiled SPA frontend dist into Spring Boot static resources
+RUN rm -rf ./src/main/resources/static/*
 COPY --from=frontend-builder /app/frontend/dist ./src/main/resources/static/
 
 # Package production executable JAR without running tests
@@ -33,24 +34,29 @@ FROM eclipse-temurin:17-jre-alpine AS production
 WORKDIR /app
 
 # Install security patches & lightweight tools (tini for PID 1 signal forwarding, curl for healthcheck)
-RUN apk add --no-cache curl tini tzdata &&     cp /usr/share/zoneinfo/Asia/Kolkata /etc/localtime &&     echo "Asia/Kolkata" > /etc/timezone
+RUN apk add --no-cache curl tini tzdata && \
+    cp /usr/share/zoneinfo/Asia/Kolkata /etc/localtime && \
+    echo "Asia/Kolkata" > /etc/timezone
 
 # Security Hardening: Non-Root Execution Group and User
-RUN addgroup -S -g 1001 hallsync &&     adduser -S -u 1001 -G hallsync hallsync
+RUN addgroup -S -g 1001 hallsync && \
+    adduser -S -u 1001 -G hallsync hallsync
 
 # Create application data storage directories with correct ownership
-RUN mkdir -p /app/uploads /app/logs /app/data/parser-tmp &&     chown -R hallsync:hallsync /app
+RUN mkdir -p /app/uploads /app/logs /app/data/parser-tmp && \
+    chown -R hallsync:hallsync /app
 
 USER hallsync:hallsync
 
 # Copy compiled Spring Boot executable JAR
-COPY --from=backend-builder --chown=hallsync:hallsync /app/backend/target/*.jar /app/app.jar
+COPY --from=backend-builder --chown=hallsync:hallsync /app/backend/target/hall-sync-*.jar /app/app.jar
 
 # Server port
 EXPOSE 8081
 
 # Production Container Health Check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3   CMD curl -f http://localhost:8081/actuator/health || curl -f http://localhost:8081/ || exit 1
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
+  CMD curl -f http://localhost:8081/actuator/health || curl -f http://localhost:8081/ || exit 1
 
 # Production JVM Performance & Memory Tuning Flags
 ENV JAVA_OPTS="-XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom -Duser.timezone=Asia/Kolkata"

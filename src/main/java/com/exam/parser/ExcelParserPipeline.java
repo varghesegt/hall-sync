@@ -145,17 +145,32 @@ public class ExcelParserPipeline {
                 }
             }
 
-            if (students.isEmpty()) {
+            // 3. Deduplicate students by register number (prevents uq_student_session constraint violations)
+            Map<String, StudentRow> uniqueStudents = new LinkedHashMap<>();
+            for (StudentRow s : students) {
+                String regKey = s.registerNumber().trim().toUpperCase();
+                if (uniqueStudents.containsKey(regKey)) {
+                    errors.add(new ParseError(1, s.sourceLineNumber(), ParseErrorCode.DUPLICATE_REGISTER, "WARNING",
+                            "Duplicate student register number '" + s.registerNumber() + "' at row " + s.sourceLineNumber() + " was skipped.",
+                            s.registerNumber()));
+                } else {
+                    uniqueStudents.put(regKey, s);
+                }
+            }
+            List<StudentRow> deduplicatedStudents = new ArrayList<>(uniqueStudents.values());
+
+            if (deduplicatedStudents.isEmpty()) {
                 return new ParseResult(ParseStatus.FAILED, List.of(),
                         List.of(new ParseError(1, 0, ParseErrorCode.ZERO_STUDENTS, "FATAL",
                                 "No student data found in Excel file after header row", null)),
                         hash, 1, totalLines);
             }
 
-            logger.info("Excel parsed: {} students, {} warnings", students.size(), errors.size());
+            logger.info("Excel parsed: {} rows extracted, {} unique students, {} warnings",
+                    students.size(), deduplicatedStudents.size(), errors.size());
 
             ParseStatus status = errors.isEmpty() ? ParseStatus.PASSED : ParseStatus.PASSED_WITH_WARNINGS;
-            return new ParseResult(status, students, errors, hash, 1, totalLines);
+            return new ParseResult(status, deduplicatedStudents, errors, hash, 1, totalLines);
 
         } catch (Exception e) {
             logger.error("Excel parsing failed", e);
