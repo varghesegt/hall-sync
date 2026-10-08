@@ -26,11 +26,11 @@ spring:
   cache:
     type: simple
 
-  data:
-    redis:
-      host: ${REDIS_HOST:redis}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
 logging:
   level:
@@ -50,6 +50,8 @@ management:
       show-details: when_authorized
   health:
     mail:
+      enabled: false
+    redis:
       enabled: false
   metrics:
     tags:
