@@ -7,6 +7,7 @@ import com.exam.repository.master.TenantRepository;
 import com.exam.repository.master.UserRepository;
 import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,24 +22,18 @@ public class TenantProvisioningService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
-
-    @Value("${spring.datasource.url}")
-    private String masterDbUrl;
-    
-    @Value("${spring.datasource.username}")
-    private String dbUsername;
-    
-    @Value("${spring.datasource.password}")
-    private String dbPassword;
+    private final DataSourceProperties masterProperties;
 
     public TenantProvisioningService(TenantRepository tenantRepository,
                                      UserRepository userRepository,
                                      PasswordEncoder passwordEncoder,
-                                     JdbcTemplate jdbcTemplate) {
+                                     JdbcTemplate jdbcTemplate,
+                                     DataSourceProperties masterProperties) {
         this.tenantRepository = tenantRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jdbcTemplate = jdbcTemplate;
+        this.masterProperties = masterProperties;
     }
 
     public void provisionTenant(CreateTenantRequest request) {
@@ -48,6 +43,10 @@ public class TenantProvisioningService {
         if (userRepository.findByEmail(request.getAdminEmail()).isPresent()) {
             throw new IllegalArgumentException("Admin email already exists.");
         }
+
+        String masterDbUrl = masterProperties.getUrl();
+        String dbUsername = masterProperties.getUsername();
+        String dbPassword = masterProperties.getPassword();
 
         String dbName = "tenant_" + request.getTenantId().toLowerCase().replaceAll("[^a-z0-9]", "");
 
@@ -63,8 +62,15 @@ public class TenantProvisioningService {
             // It might already exist, log or handle
         }
 
-        // Run Flyway migrations on the new tenant DB
-        String tenantDbUrl = masterDbUrl.substring(0, masterDbUrl.lastIndexOf("/") + 1) + dbName;
+        // Run Flyway migrations on the new tenant DB (preserve SSL & query params)
+        String queryParams = "";
+        int qIdx = masterDbUrl.indexOf("?");
+        String baseUrl = (qIdx != -1) ? masterDbUrl.substring(0, qIdx) : masterDbUrl;
+        if (qIdx != -1) {
+            queryParams = masterDbUrl.substring(qIdx);
+        }
+        String basePart = baseUrl.substring(0, baseUrl.lastIndexOf("/") + 1);
+        String tenantDbUrl = basePart + dbName + queryParams;
         
         Flyway flyway = Flyway.configure()
                 .dataSource(tenantDbUrl, dbUsername, dbPassword)

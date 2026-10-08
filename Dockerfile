@@ -55,11 +55,11 @@ COPY --from=backend-builder --chown=hallsync:hallsync /app/backend/target/hall-s
 EXPOSE 8081
 
 # Production Container Health Check
-HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
-  CMD curl -f http://localhost:8081/actuator/health || curl -f http://localhost:8081/ || exit 1
+HEALTHCHECK --interval=15s --timeout=5s --start-period=35s --retries=5 \
+  CMD curl -f http://localhost:${PORT:-8081}/actuator/health || curl -f http://localhost:${PORT:-8081}/ || exit 1
 
-# Production JVM Performance & Memory Tuning Flags
-ENV JAVA_OPTS="-XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom -Duser.timezone=Asia/Kolkata"
+# Production JVM Performance & Memory Tuning Flags (defaults to 512MB cloud free-tier safe footprint)
+ENV JAVA_OPTS="-Xms128m -Xmx280m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=32m -Xss512k -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom -Duser.timezone=Asia/Kolkata"
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]

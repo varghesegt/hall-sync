@@ -90,10 +90,29 @@ public class TenantRoutingDataSource extends AbstractRoutingDataSource {
         String dbName = "tenant_" + tenantId.toLowerCase().replaceAll("[^a-z0-9]", "");
         
         String masterUrl = masterProperties.getUrl();
-        String tenantUrl = masterUrl.substring(0, masterUrl.lastIndexOf("/") + 1) + dbName;
+        String queryParams = "";
+        int qIdx = masterUrl.indexOf("?");
+        String baseUrl = (qIdx != -1) ? masterUrl.substring(0, qIdx) : masterUrl;
+        if (qIdx != -1) {
+            queryParams = masterUrl.substring(qIdx);
+        }
+        String basePart = baseUrl.substring(0, baseUrl.lastIndexOf("/") + 1);
+        String tenantUrl = basePart + dbName + queryParams;
 
         logger.info("Initializing DataSource for tenant: {} (DB: {}) [pool: max={}, minIdle={}]",
                 tenantId, dbName, TENANT_POOL_MAX_SIZE, TENANT_POOL_MIN_IDLE);
+
+        // Ensure physical database exists on PostgreSQL
+        try (java.sql.Connection conn = masterDataSource.getConnection()) {
+            conn.setAutoCommit(true);
+            try (java.sql.Statement stmt = conn.createStatement()) {
+                stmt.execute("CREATE DATABASE \"" + dbName + "\"");
+                logger.info("Created physical database '{}' for tenant '{}'", dbName, tenantId);
+            }
+        } catch (Exception e) {
+            // Already exists or not permitted — log and proceed to Flyway
+            logger.debug("Database creation check for '{}': {}", dbName, e.getMessage());
+        }
 
         // Run Flyway migrations on the tenant DB to ensure schema is up to date
         try {

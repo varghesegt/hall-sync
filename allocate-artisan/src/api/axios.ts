@@ -2,7 +2,7 @@ import axios from "axios";
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "/api/v1",
-  timeout: 60000, // Increased for large PDF uploads
+  timeout: 75000, // 75s allows Render Free Tier cold-start spin-up (~45-60s)
   withCredentials: true,
   headers: {
     Accept: "application/json",
@@ -70,7 +70,7 @@ apiClient.interceptors.response.use(
           apiError.message = data?.message || "Too many requests. Please wait before retrying.";
           break;
         case 503:
-          apiError.message = data?.message || "System is busy. Please retry shortly.";
+          apiError.message = data?.message || "System is busy or warming up. Please retry shortly.";
           break;
         case 500:
           apiError.message = data?.message || "A server error occurred. Please contact support if this persists.";
@@ -78,9 +78,11 @@ apiClient.interceptors.response.use(
         default:
           apiError.message = data?.message || `Request failed (${status}).`;
       }
+    } else if (error.code === "ECONNABORTED" || error.message?.toLowerCase().includes("timeout")) {
+      apiError.message = "The server is taking longer than usual to respond. It may be waking up from sleep mode (free tier cold start). Please retry in a few moments.";
     } else if (error.request) {
       // No response received -> Server might be down or network dropped
-      apiError.message = "Network error. Server unreachable.";
+      apiError.message = "Network error. Backend server may be waking up or unreachable.";
       window.dispatchEvent(new Event("hallsync:network_offline"));
     }
 
