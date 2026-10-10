@@ -131,7 +131,7 @@ public class AllocationFacadeImpl implements AllocationFacade {
     }
 
     @Override
-    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @org.springframework.transaction.annotation.Transactional
     public BatchStatusResponse getLatestBatchStatus(UUID examSessionId) {
         Optional<AllocationBatch> latest = batchRepo.findFirstByExamSessionIdOrderByCreatedAtDesc(examSessionId);
 
@@ -139,6 +139,15 @@ public class AllocationFacadeImpl implements AllocationFacade {
              return new BatchStatusResponse(examSessionId, null, "NOT_STARTED", null, null);
         }
 
-        return EntityMapper.toBatchStatus(latest.get());
+        AllocationBatch batch = latest.get();
+        if (batch.getStatus() == BatchStatus.RUNNING &&
+            batch.getCreatedAt() != null &&
+            batch.getCreatedAt().isBefore(java.time.LocalDateTime.now().minusMinutes(3))) {
+            logger.warn("Batch {} stuck in RUNNING for >3m. Auto-marking as FAILED to unblock UI.", batch.getId());
+            batch.setStatus(BatchStatus.FAILED);
+            batchRepo.save(batch);
+        }
+
+        return EntityMapper.toBatchStatus(batch);
     }
 }

@@ -104,7 +104,7 @@ export const downloadBatchPdf = async (batchId: string): Promise<{blob: Blob, fi
     headers: {
       Accept: "application/pdf",
     },
-    timeout: 30000,
+    timeout: 120000,
   });
   
   let filename = `allocation-${batchId}.pdf`;
@@ -123,7 +123,7 @@ export const downloadBatchExcel = async (batchId: string): Promise<{blob: Blob, 
     headers: {
       Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     },
-    timeout: 30000,
+    timeout: 120000,
   });
   
   let filename = `allocation-${batchId}.xlsx`;

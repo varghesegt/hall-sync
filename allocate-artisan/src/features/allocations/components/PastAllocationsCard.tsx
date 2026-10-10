@@ -175,7 +175,17 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
     }
   };
 
-  const triggerFileSave = (blob: Blob, filename: string) => {
+  const triggerFileSave = async (blob: Blob, filename: string) => {
+    if (blob.type === "application/json" || (blob.type.includes("json") && blob.size < 1000)) {
+      try {
+        const text = await blob.text();
+        const parsed = JSON.parse(text);
+        if (parsed.message) {
+          toast.error(parsed.message);
+          return;
+        }
+      } catch {}
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

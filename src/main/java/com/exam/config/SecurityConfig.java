@@ -82,6 +82,12 @@ public class SecurityConfig {
     }
 
     @Bean
+    @org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
+    public org.springframework.web.filter.CorsFilter corsFilter() {
+        return new org.springframework.web.filter.CorsFilter(corsConfigurationSource());
+    }
+
+    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
@@ -98,18 +104,21 @@ public class SecurityConfig {
                 }
             }
         }
-        // Guarantee Vercel production and preview domains are allowed
         if (!patterns.contains("https://*.vercel.app")) {
             patterns.add("https://*.vercel.app");
         }
         if (!patterns.contains("https://hall-sync-six.vercel.app")) {
             patterns.add("https://hall-sync-six.vercel.app");
         }
+        // Universal pattern allows all preview branches and domains with credentials
+        if (!patterns.contains("*")) {
+            patterns.add("*");
+        }
         
         configuration.setAllowedOriginPatterns(patterns);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Disposition", "Content-Type", "Accept"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Disposition", "Content-Type", "Accept", "X-Tenant-ID"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
         

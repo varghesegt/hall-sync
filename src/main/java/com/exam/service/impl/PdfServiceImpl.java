@@ -116,14 +116,16 @@ public class PdfServiceImpl implements PdfService {
                 String[] rowLabels = {"I Row", "II Row", "III Row", "IV Row", "V Row", "VI Row", "VII Row", "VIII Row"};
                 
                 for (PdfAllocationView a : hallAllocations) {
-                    if (a.seatRow() > maxRow) maxRow = a.seatRow();
-                    for (int i = 0; i < engineColNames.length; i++) {
-                        if (engineColNames[i].equals(a.seatCol()) && i > maxColIndex) {
-                            maxColIndex = i;
+                    if (a.seatRow() != null && a.seatRow() > maxRow) maxRow = a.seatRow();
+                    if (a.seatCol() != null) {
+                        for (int i = 0; i < engineColNames.length; i++) {
+                            if (engineColNames[i].equalsIgnoreCase(a.seatCol().trim()) && i > maxColIndex) {
+                                maxColIndex = i;
+                            }
                         }
                     }
                 }
-                int colCount = maxColIndex + 1;
+                int colCount = Math.min(maxColIndex + 1, engineColNames.length);
 
                 // --- Grid Table (Dynamic Columns) ---
                 document.add(new Paragraph("REGISTER NO. OF THE CANDIDATES")
@@ -143,7 +145,7 @@ public class PdfServiceImpl implements PdfService {
                     
                     final String colName = engineColNames[c];
                     String depts = hallAllocations.stream()
-                            .filter(a -> colName.equals(a.seatCol()))
+                            .filter(a -> a.seatCol() != null && colName.equalsIgnoreCase(a.seatCol().trim()))
                             .map(a -> shortenDept(a.department(), a.registerNumber()))
                             .distinct()
                             .collect(Collectors.joining("/"));
@@ -152,10 +154,17 @@ public class PdfServiceImpl implements PdfService {
                     gridTable.addHeaderCell(new Cell().add(new Paragraph(headerText).setFont(boldFont).setFontSize(8).setTextAlignment(TextAlignment.CENTER)).setPadding(1));
                 }
 
-                // Grid Body (Mapped by engine assignments)
+                // Grid Body (Mapped by engine assignments - safe against duplicate keys and nulls)
                 Map<String, Map<Integer, PdfAllocationView>> seatMap = hallAllocations.stream()
-                        .collect(Collectors.groupingBy(PdfAllocationView::seatCol,
-                                 Collectors.toMap(PdfAllocationView::seatRow, a -> a)));
+                        .filter(a -> a.seatCol() != null && a.seatRow() != null)
+                        .collect(Collectors.groupingBy(
+                                a -> a.seatCol().trim().toUpperCase(),
+                                Collectors.toMap(
+                                        PdfAllocationView::seatRow,
+                                        a -> a,
+                                        (first, duplicate) -> first
+                                )
+                        ));
 
                 for (int r = 1; r <= maxRow; r++) {
                     for (int c = 0; c < colCount; c++) {
@@ -166,21 +175,21 @@ public class PdfServiceImpl implements PdfService {
                         gridTable.addCell(new Cell().add(new Paragraph(String.valueOf(sno)).setFont(boldFont).setFontSize(8).setTextAlignment(TextAlignment.CENTER)).setPadding(1));
                         
                         // Reg No Cell
-                        PdfAllocationView student = seatMap.getOrDefault(colName, Collections.emptyMap()).get(r);
+                        PdfAllocationView student = seatMap.getOrDefault(colName.toUpperCase(), Collections.emptyMap()).get(r);
                         if (student != null) {
-                            gridTable.addCell(new Cell().add(new Paragraph(Objects.toString(student.registerNumber(), "-")).setFont(regFont).setFontSize(9).setTextAlignment(TextAlignment.CENTER)).setPadding(3));
+                            gridTable.addCell(new Cell().add(new Paragraph(Objects.toString(student.registerNumber(), "-")).setFont(regFont).setFontSize(9).setTextAlignment(TextAlignment.CENTER)).setPadding(2));
                         } else {
-                            gridTable.addCell(new Cell().add(new Paragraph("-").setFont(regFont).setFontSize(9).setTextAlignment(TextAlignment.CENTER)).setPadding(3));
+                            gridTable.addCell(new Cell().add(new Paragraph("-").setFont(regFont).setFontSize(9).setTextAlignment(TextAlignment.CENTER)).setPadding(2));
                         }
                     }
                 }
                 document.add(gridTable);
 
                 // --- Footer Signatures ---
-                Table footerTable = new Table(UnitValue.createPercentArray(new float[]{1, 1})).useAllAvailableWidth().setMarginTop(35);
-                footerTable.addCell(new Cell().add(new Paragraph("Name and signature of the Hall superintendent").setFont(boldFont).setFontSize(9).setTextAlignment(TextAlignment.CENTER))
+                Table footerTable = new Table(UnitValue.createPercentArray(new float[]{1, 1})).useAllAvailableWidth().setMarginTop(15);
+                footerTable.addCell(new Cell().add(new Paragraph("Name and signature of the Hall superintendent").setFont(boldFont).setFontSize(8).setTextAlignment(TextAlignment.CENTER))
                         .setBorder(Border.NO_BORDER));
-                footerTable.addCell(new Cell().add(new Paragraph("Signature of Chief Superintendent with college seal").setFont(boldFont).setFontSize(9).setTextAlignment(TextAlignment.CENTER))
+                footerTable.addCell(new Cell().add(new Paragraph("Signature of Chief Superintendent with college seal").setFont(boldFont).setFontSize(8).setTextAlignment(TextAlignment.CENTER))
                         .setBorder(Border.NO_BORDER));
                 document.add(footerTable);
 
@@ -188,11 +197,9 @@ public class PdfServiceImpl implements PdfService {
                 if (hallCounter % 2 == 0 && hallCounter < sortedHalls.size()) {
                     document.add(new AreaBreak());
                 } else if (hallCounter < sortedHalls.size()) {
-                    // Spacer between two halls on the same page
-                    document.add(new Paragraph("\n").setFontSize(10).setMarginTop(10).setMarginBottom(10));
+                    // Compact divider between two halls on the same page
                     document.add(new Paragraph("----------------------------------------------------------------------------------------------------------------------------------")
-                            .setFontSize(8).setFontColor(com.itextpdf.kernel.colors.ColorConstants.LIGHT_GRAY).setTextAlignment(TextAlignment.CENTER).setMargin(0));
-                    document.add(new Paragraph("\n").setFontSize(10).setMarginTop(10).setMarginBottom(10));
+                            .setFontSize(7).setFontColor(com.itextpdf.kernel.colors.ColorConstants.LIGHT_GRAY).setTextAlignment(TextAlignment.CENTER).setMarginTop(8).setMarginBottom(8));
                 }
             }
 

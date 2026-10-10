@@ -62,7 +62,26 @@ public class BatchController {
     }
 
     @GetMapping(value = "/pdf")
-    public ResponseEntity<StreamingResponseBody> downloadPdf(@PathVariable UUID batchId) {
+    public ResponseEntity<?> downloadPdf(@PathVariable UUID batchId) {
+        BatchStatusResponse status = batchService.getBatchStatus(batchId);
+        if (status == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Batch not found: " + batchId));
+        }
+        if ("RUNNING".equalsIgnoreCase(status.status())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "Allocation is still in progress. Please wait for completion."));
+        }
+        if ("FAILED".equalsIgnoreCase(status.status())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "Allocation failed. Please re-run allocation."));
+        }
+        List<PdfAllocationView> preview = batchService.getPreviewData(batchId);
+        if (preview == null || preview.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "No allocations found in batch: " + batchId));
+        }
+
         String mdcToken = MDC.get("allocationRequestId");
         String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
         final String resolvedTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "krce";

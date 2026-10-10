@@ -99,15 +99,30 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
 
   const downloadFile = useCallback(async (downloadFn: (id: string) => Promise<{blob: Blob, filename: string}>) => {
     if (!resolvedBatchId) return;
-    const { blob, filename } = await downloadFn(resolvedBatchId);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      const { blob, filename } = await downloadFn(resolvedBatchId);
+      if (blob.type === "application/json" || (blob.type.includes("json") && blob.size < 1000)) {
+        const text = await blob.text();
+        let msg = "Failed to download file. Please try again.";
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.message) msg = parsed.message;
+        } catch {}
+        alert(msg);
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error("Download failed:", err);
+      alert(err.message || "Failed to download file. Please try again.");
+    }
   }, [resolvedBatchId]);
 
   const handleTrigger = () => {
