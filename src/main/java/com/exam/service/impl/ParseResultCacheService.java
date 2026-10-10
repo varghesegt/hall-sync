@@ -18,7 +18,16 @@ public class ParseResultCacheService {
     private static final Logger logger = LoggerFactory.getLogger(ParseResultCacheService.class);
     
     private final RedisTemplate<String, Object> redisTemplate;
-    private final Map<String, ParseResult> localCache = new ConcurrentHashMap<>();
+
+    // Bounded LRU cache (max 3 entries) to prevent heap exhaustion on 512MB hosting
+    private final Map<String, ParseResult> localCache = java.util.Collections.synchronizedMap(
+            new java.util.LinkedHashMap<String, ParseResult>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, ParseResult> eldest) {
+                    return size() > 3;
+                }
+            }
+    );
     
     // Cache TTL for parsed results to avoid indefinite memory/Redis growth
     private static final Duration CACHE_TTL = Duration.ofDays(7);

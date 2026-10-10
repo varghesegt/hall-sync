@@ -5,6 +5,14 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://hall-sync.onrender.com/api/:path*"
+    },
+    {
+      "source": "/actuator/:path*",
+      "destination": "https://hall-sync.onrender.com/actuator/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

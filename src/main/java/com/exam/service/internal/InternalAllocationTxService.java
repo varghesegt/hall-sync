@@ -122,9 +122,9 @@ public class InternalAllocationTxService {
                     allocationRequestId, result.assignments().size(), result.violations().size());
 
             Map<String, com.exam.entity.Student> studentMap = students.stream()
-                    .collect(Collectors.toMap(com.exam.entity.Student::getRegisterNumber, s -> s));
+                    .collect(Collectors.toMap(com.exam.entity.Student::getRegisterNumber, s -> s, (first, duplicate) -> first));
             Map<String, com.exam.entity.Hall> hallMap = halls.stream()
-                    .collect(Collectors.toMap(com.exam.entity.Hall::getId, h -> h));
+                    .collect(Collectors.toMap(com.exam.entity.Hall::getId, h -> h, (first, duplicate) -> first));
 
             List<Allocation> newAllocations = new ArrayList<>();
             for (SeatAssignment a : result.assignments()) {

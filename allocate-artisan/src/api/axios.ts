@@ -1,7 +1,16 @@
 import axios from "axios";
 
+const getBaseUrl = (): string => {
+  if (typeof window !== "undefined" && window.location.hostname.endsWith("vercel.app")) {
+    // When running on Vercel, route via relative /api/v1 to leverage vercel.json reverse-proxy.
+    // This makes all requests SAME-ORIGIN, completely eliminating browser CORS errors & preflight blocks!
+    return "/api/v1";
+  }
+  return import.meta.env.VITE_API_BASE_URL || "/api/v1";
+};
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "/api/v1",
+  baseURL: getBaseUrl(),
   timeout: 75000, // 75s allows Render Free Tier cold-start spin-up (~45-60s)
   withCredentials: true,
   headers: {

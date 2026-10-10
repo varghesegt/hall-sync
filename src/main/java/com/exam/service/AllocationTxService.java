@@ -156,8 +156,8 @@ public class AllocationTxService {
             logger.info("[{}] Engine completed: {} assignments, {} violations",
                     allocationRequestId, result.assignments().size(), result.violations().size());
 
-            Map<String, Student> studentMap = students.stream().collect(Collectors.toMap(Student::getRegisterNumber, s -> s));
-            Map<String, Hall> hallMap = halls.stream().collect(Collectors.toMap(Hall::getId, h -> h));
+            Map<String, Student> studentMap = students.stream().collect(Collectors.toMap(Student::getRegisterNumber, s -> s, (first, duplicate) -> first));
+            Map<String, Hall> hallMap = halls.stream().collect(Collectors.toMap(Hall::getId, h -> h, (first, duplicate) -> first));
 
             List<Allocation> newAllocations = new ArrayList<>();
             for (com.exam.engine.model.SeatAssignment a : result.assignments()) {
