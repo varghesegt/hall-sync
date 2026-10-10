@@ -58,8 +58,8 @@ EXPOSE 10000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=35s --retries=5 \
   CMD curl -f http://localhost:${PORT:-10000}/actuator/health || curl -f http://localhost:${PORT:-10000}/ || exit 1
 
-# Production JVM Performance & Memory Tuning Flags (optimized for Render 512MB cloud free-tier)
-ENV JAVA_OPTS="-Xms64m -Xmx300m -XX:+UseG1GC -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=32m -Xss256k -Djava.security.egd=file:/dev/./urandom -Duser.timezone=Asia/Kolkata"
+# Production JVM Performance & Memory Tuning Flags (proven safe footprint for Render 512MB container)
+ENV JAVA_OPTS="-Xms128m -Xmx260m -XX:+UseSerialGC -XX:MaxMetaspaceSize=140m -XX:ReservedCodeCacheSize=32m -Xss512k -Djava.security.egd=file:/dev/./urandom -Duser.timezone=Asia/Kolkata"
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
