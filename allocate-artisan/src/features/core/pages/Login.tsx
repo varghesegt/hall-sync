@@ -8,22 +8,41 @@ import { toast } from "sonner";
 import apiClient from "@/api/axios";
 import { ShieldAlert, ShieldCheck, Loader2 } from "lucide-react";
 
+const DEFAULT_TENANTS = [
+  { tenantId: "krce", collegeName: "K. RAMAKRISHNAN COLLEGE OF ENGINEERING" }
+];
+
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [tenantId, setTenantId] = useState("");
-  const [tenants, setTenants] = useState<{tenantId: string, collegeName: string}[]>([]);
+  const [tenantId, setTenantId] = useState("krce");
+  const [tenants, setTenants] = useState<{tenantId: string, collegeName: string}[]>(DEFAULT_TENANTS);
   const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
     localStorage.removeItem("token");
     localStorage.removeItem("coe_auth");
-    apiClient.get("/auth/tenants")
-      .then(res => {
-        setTenants(res.data);
-        if (res.data.length > 0) setTenantId(res.data[0].tenantId);
-      })
-      .catch(err => console.error("Failed to load colleges", err));
+    
+    let isMounted = true;
+    const fetchTenants = (retriesLeft = 3) => {
+      apiClient.get("/auth/tenants")
+        .then(res => {
+          if (isMounted && Array.isArray(res.data) && res.data.length > 0) {
+            setTenants(res.data);
+            if (!tenantId || !res.data.some((t: any) => t.tenantId === tenantId)) {
+              setTenantId(res.data[0].tenantId);
+            }
+          }
+        })
+        .catch(() => {
+          if (isMounted && retriesLeft > 0) {
+            setTimeout(() => fetchTenants(retriesLeft - 1), 3000);
+          }
+        });
+    };
+
+    fetchTenants();
+    return () => { isMounted = false; };
   }, []);
 
   const navigate = useNavigate();
