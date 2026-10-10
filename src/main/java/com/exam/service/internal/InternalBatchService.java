@@ -63,11 +63,25 @@ public class InternalBatchService {
     }
 
     @Transactional(readOnly = true)
+    public void generatePdfWithAllocations(UUID batchId, List<PdfAllocationView> allocations, OutputStream out) {
+        AllocationBatch batch = batchRepo.findByIdWithSession(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found: " + batchId));
+        pdfService.generateHallPdf(batch, allocations, out);
+    }
+
+    @Transactional(readOnly = true)
     public void generateExcel(UUID batchId, OutputStream out) {
         AllocationBatch batch = batchRepo.findByIdWithSession(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Batch not found: " + batchId));
         List<PdfAllocationView> allocations = allocationRepo.findPdfViewsByBatchId(batchId);
         if (allocations.isEmpty()) throw new ResourceNotFoundException("No allocations in batch: " + batchId);
+        excelService.generateBatchExcel(batch, allocations, out);
+    }
+
+    @Transactional(readOnly = true)
+    public void generateExcelWithAllocations(UUID batchId, List<PdfAllocationView> allocations, OutputStream out) {
+        AllocationBatch batch = batchRepo.findByIdWithSession(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found: " + batchId));
         excelService.generateBatchExcel(batch, allocations, out);
     }
 

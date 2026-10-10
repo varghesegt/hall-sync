@@ -67,6 +67,14 @@ public class BatchFacadeImpl implements BatchService {
 
     @Override
     @Transactional(readOnly = true)
+    public void generatePdfWithAllocations(UUID batchId, List<PdfAllocationView> allocations, java.io.OutputStream out) {
+        AllocationBatch batch = batchRepo.findByIdWithSession(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found for PDF: " + batchId));
+        pdfService.generateHallPdf(batch, allocations, out);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public void generateExcel(UUID batchId, java.io.OutputStream out) {
         AllocationBatch batch = batchRepo.findByIdWithSession(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Batch not found for Excel: " + batchId));
@@ -77,6 +85,14 @@ public class BatchFacadeImpl implements BatchService {
             throw new ResourceNotFoundException("No active allocations found in batch: " + batchId);
         }
 
+        excelService.generateBatchExcel(batch, allocations, out);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void generateExcelWithAllocations(UUID batchId, List<PdfAllocationView> allocations, java.io.OutputStream out) {
+        AllocationBatch batch = batchRepo.findByIdWithSession(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found for Excel: " + batchId));
         excelService.generateBatchExcel(batch, allocations, out);
     }
 

@@ -70,7 +70,19 @@ const PageLoader = () => (
 );
 
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // Prevents sudden flood of refetches when user switches windows/tabs
+      retry: (failureCount, error: any) => {
+        if (error?.status === 401 || error?.status === 403 || error?.status === 404) return false;
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      staleTime: 30000, // 30s cache prevents duplicate requests on component re-renders
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

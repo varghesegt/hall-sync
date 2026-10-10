@@ -92,7 +92,7 @@ public class BatchController {
                 if (mdcToken != null) MDC.put("allocationRequestId", mdcToken);
                 // Data fetch (projection DTOs) completes BEFORE stream writes begin,
                 // so no DB transaction is held open during the long-lived TCP stream.
-                batchService.generatePdf(batchId, out);
+                batchService.generatePdfWithAllocations(batchId, preview, out);
                 out.flush();
             } catch (IOException ioEx) {
                 // Client disconnect (browser closed, network drop) — not a real failure

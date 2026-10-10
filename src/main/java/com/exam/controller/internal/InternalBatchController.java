@@ -88,7 +88,7 @@ public class InternalBatchController {
             try {
                 com.exam.config.tenant.TenantContext.setCurrentTenant(resolvedTenant);
                 if (mdcToken != null) MDC.put("allocationRequestId", mdcToken);
-                batchService.generatePdf(batchId, out);
+                batchService.generatePdfWithAllocations(batchId, preview, out);
                 out.flush();
             } catch (IOException ioEx) {
                 if (isClientAbort(ioEx)) {
@@ -145,7 +145,7 @@ public class InternalBatchController {
             try {
                 com.exam.config.tenant.TenantContext.setCurrentTenant(resolvedTenant);
                 if (mdcToken != null) MDC.put("allocationRequestId", mdcToken);
-                batchService.generateExcel(batchId, out);
+                batchService.generateExcelWithAllocations(batchId, preview, out);
                 out.flush();
             } catch (IOException ioEx) {
                 if (isClientAbort(ioEx)) {
