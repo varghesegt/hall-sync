@@ -11,7 +11,7 @@ import { RoomSelector } from "@/features/allocations/components/RoomSelector";
 import { StepIndicator } from "@/components/StepIndicator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, AlertCircle } from "lucide-react";
 
 export default function InternalDashboard() {
   const [fileId, setFileId] = useState<string | null>(() => sessionStorage.getItem("hall_sync_internal_file_id"));
@@ -61,7 +61,16 @@ export default function InternalDashboard() {
 
           {fileId && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-              <InternalStudentPreview fileId={fileId} onParsedCount={(count) => setTotalStudents(count)} />
+              <InternalStudentPreview
+                fileId={fileId}
+                onParsedCount={(count) => setTotalStudents(count)}
+                onResetFile={() => {
+                  setFileId(null);
+                  setSessionId(null);
+                  sessionStorage.removeItem("hall_sync_internal_file_id");
+                  sessionStorage.removeItem("hall_sync_internal_session_id");
+                }}
+              />
             </div>
           )}
 
@@ -126,11 +135,21 @@ export default function InternalDashboard() {
 }
 
 // Internal student preview component that uses internal API
-function InternalStudentPreview({ fileId, onParsedCount }: { fileId: string; onParsedCount?: (count: number) => void }) {
-  const { data } = useQuery({
+function InternalStudentPreview({
+  fileId,
+  onParsedCount,
+  onResetFile,
+}: {
+  fileId: string;
+  onParsedCount?: (count: number) => void;
+  onResetFile?: () => void;
+}) {
+  const { data, isError, isLoading } = useQuery({
     queryKey: ["internal-student-preview", fileId],
     queryFn: () => getInternalStudentPreview(fileId),
     enabled: !!fileId,
+    retry: 1,
+    staleTime: 60000,
   });
 
   useEffect(() => {
@@ -143,6 +162,27 @@ function InternalStudentPreview({ fileId, onParsedCount }: { fileId: string; onP
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [visibleCount, setVisibleCount] = useState(20);
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 text-sm shadow-xs">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+          <span>Uploaded roster session has expired or the file was reset. Please upload the Excel file again.</span>
+        </div>
+        {onResetFile && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onResetFile}
+            className="bg-white border-amber-300 text-amber-800 hover:bg-amber-100 shrink-0 self-end sm:self-auto"
+          >
+            Re-upload File
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   const departments = useMemo(() => {
     if (!data?.students) return [];

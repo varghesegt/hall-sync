@@ -28,11 +28,11 @@ public class TenantRoutingDataSource extends AbstractRoutingDataSource {
     private static final Logger logger = LoggerFactory.getLogger(TenantRoutingDataSource.class);
 
     // ── Pool Tuning Constants ──────────────────────────────────────────────
-    private static final int TENANT_POOL_MAX_SIZE = 3;
+    private static final int TENANT_POOL_MAX_SIZE = 5;
     private static final int TENANT_POOL_MIN_IDLE = 1;
-    private static final long TENANT_POOL_IDLE_TIMEOUT_MS = 120_000;      // 2 minutes
-    private static final long TENANT_POOL_MAX_LIFETIME_MS = 300_000;      // 5 minutes
-    private static final long TENANT_POOL_CONNECTION_TIMEOUT_MS = 5_000;  // 5 seconds (fail fast)
+    private static final long TENANT_POOL_IDLE_TIMEOUT_MS = 300_000;      // 5 minutes
+    private static final long TENANT_POOL_MAX_LIFETIME_MS = 600_000;      // 10 minutes
+    private static final long TENANT_POOL_CONNECTION_TIMEOUT_MS = 10_000; // 10 seconds (resilient to sudden bursts)
     private static final long POOL_EVICTION_INTERVAL_MS = 300_000;        // Check every 5 minutes
     private static final long POOL_EVICTION_IDLE_THRESHOLD_MS = 1_800_000; // Evict after 30 min idle
 
@@ -48,6 +48,13 @@ public class TenantRoutingDataSource extends AbstractRoutingDataSource {
         // Schedule idle pool eviction to prevent memory bloat from inactive tenants
         evictionScheduler.scheduleAtFixedRate(this::evictIdlePools,
                 POOL_EVICTION_INTERVAL_MS, POOL_EVICTION_INTERVAL_MS, TimeUnit.MILLISECONDS);
+    }
+
+    public synchronized void warmUpTenant(String tenantId) {
+        if (!targetDataSources.containsKey(tenantId)) {
+            logger.info("Pre-warming connection pool and migrations for tenant: {}", tenantId);
+            createAndAddDataSource(tenantId);
+        }
     }
 
     public void setMasterDataSource(DataSource masterDataSource) {
@@ -163,6 +170,12 @@ public class TenantRoutingDataSource extends AbstractRoutingDataSource {
 
         for (Map.Entry<String, Long> entry : lastAccessTime.entrySet()) {
             String tenantId = entry.getKey();
+            
+            // Never evict master or primary tenant (krce)
+            if ("MASTER".equalsIgnoreCase(tenantId) || "krce".equalsIgnoreCase(tenantId)) {
+                continue;
+            }
+
             long lastAccess = entry.getValue();
 
             if ((now - lastAccess) > POOL_EVICTION_IDLE_THRESHOLD_MS) {

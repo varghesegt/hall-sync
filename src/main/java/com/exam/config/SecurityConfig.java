@@ -44,9 +44,9 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC, jakarta.servlet.DispatcherType.FORWARD, jakarta.servlet.DispatcherType.ERROR).permitAll()
-                .requestMatchers("/api/v1/auth/**", "/api/v1/tenant/current", "/api/v1/public/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow preflight
-                .requestMatchers(HttpMethod.GET, "/api/v1/settings", "/api/v1/settings/logo").permitAll() // Publicly readable college branding & config
+                .requestMatchers(HttpMethod.PUT, "/api/v1/settings", "/api/v1/settings/**").authenticated() // Require auth for modifying settings
+                .requestMatchers("/api/v1/auth/**", "/api/v1/tenant/current", "/api/v1/public/**", "/api/v1/settings", "/api/v1/settings/**").permitAll() // Publicly readable college branding & config
                 .requestMatchers(HttpMethod.GET, "/", "/index.html", "/assets/**", "/favicon.ico", "/manifest.json", "/error", "/*.png", "/*.ico", "/*.svg").permitAll() // Static UI & Error route
                 .requestMatchers("/api/v1/admin/**").hasRole("SUPER_ADMIN") // Secure admin routes strictly
                 .requestMatchers("/actuator/health").permitAll()

@@ -30,11 +30,12 @@ export function useAllocation(sessionId: string | null, selectedRooms: string[] 
     queryFn: () => getLatestBatch(sessionId!),
     enabled: !!sessionId,
     refetchInterval: (query) => {
+      if (query.state.error) return false;
       const status = query.state.data?.status;
       if (status === "RUNNING") return 3000;
       return false;
     },
-    retry: 2,
+    retry: 1,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     staleTime: 5000,
   });

@@ -104,4 +104,17 @@ public class DataSourceConfig {
         
         return customDataSource;
     }
+
+    @Bean
+    public org.springframework.boot.ApplicationRunner tenantPoolWarmupRunner(TenantRoutingDataSource tenantRoutingDataSource) {
+        return args -> {
+            logger.info("Initializing pre-warm routine for primary tenant (krce)...");
+            try {
+                tenantRoutingDataSource.warmUpTenant("krce");
+                logger.info("Primary tenant (krce) pool and migrations pre-warmed successfully on startup.");
+            } catch (Exception e) {
+                logger.warn("Could not pre-warm tenant 'krce' pool on startup: {}", e.getMessage());
+            }
+        };
+    }
 }

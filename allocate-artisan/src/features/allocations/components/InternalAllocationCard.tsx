@@ -49,12 +49,13 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
     queryFn: () => getInternalLatestBatch(sessionId!),
     enabled: !!sessionId,
     refetchInterval: (query) => {
+      if (query.state.error) return false;
       const status = query.state.data?.status;
       // Only poll backend when an allocation is actively in progress
       if (status === "RUNNING") return 3000;
       return false;
     },
-    retry: 2,
+    retry: 1,
     staleTime: 5000,
   });
 
