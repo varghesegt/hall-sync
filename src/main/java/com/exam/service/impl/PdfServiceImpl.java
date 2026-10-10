@@ -139,16 +139,23 @@ public class PdfServiceImpl implements PdfService {
                 Table gridTable = new Table(UnitValue.createPercentArray(gridWidths)).useAllAvailableWidth();
                 gridTable.setFixedLayout();
                 
+                // Pre-index column to departments once per hall (eliminates O(N^2) linear scans)
+                Map<String, String> colToDepts = hallAllocations.stream()
+                        .filter(a -> a.seatCol() != null)
+                        .collect(Collectors.groupingBy(
+                                a -> a.seatCol().trim().toUpperCase(),
+                                Collectors.mapping(
+                                        a -> shortenDept(a.department(), a.registerNumber()),
+                                        Collectors.collectingAndThen(Collectors.toSet(), set -> String.join("/", set))
+                                )
+                        ));
+
                 // Column Headers
                 for (int c = 0; c < colCount; c++) {
                     gridTable.addHeaderCell(new Cell().add(new Paragraph("S\nN\nO").setFont(boldFont).setFontSize(7).setTextAlignment(TextAlignment.CENTER)).setPadding(1).setVerticalAlignment(com.itextpdf.layout.properties.VerticalAlignment.MIDDLE));
                     
                     final String colName = engineColNames[c];
-                    String depts = hallAllocations.stream()
-                            .filter(a -> a.seatCol() != null && colName.equalsIgnoreCase(a.seatCol().trim()))
-                            .map(a -> shortenDept(a.department(), a.registerNumber()))
-                            .distinct()
-                            .collect(Collectors.joining("/"));
+                    String depts = colToDepts.getOrDefault(colName.toUpperCase(), "");
                     
                     String headerText = rowLabels[c] + (depts.isEmpty() ? "" : "\n(" + depts + ")");
                     gridTable.addHeaderCell(new Cell().add(new Paragraph(headerText).setFont(boldFont).setFontSize(8).setTextAlignment(TextAlignment.CENTER)).setPadding(1));

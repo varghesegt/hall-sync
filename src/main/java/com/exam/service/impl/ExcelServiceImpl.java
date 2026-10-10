@@ -7,6 +7,7 @@ import com.exam.entity.ExamSession;
 import com.exam.service.ExcelService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +27,8 @@ public class ExcelServiceImpl implements ExcelService {
                 .sorted(Comparator.comparing(PdfAllocationView::hallName))
                 .collect(Collectors.groupingBy(PdfAllocationView::hallName));
 
-        try (Workbook workbook = new XSSFWorkbook()) {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(200)) {
+            workbook.setCompressTempFiles(true);
             Sheet sheet = workbook.createSheet("Seating Arrangement");
 
             // Define Styles
@@ -101,6 +103,17 @@ public class ExcelServiceImpl implements ExcelService {
                 // Column Headers
                 Row gridHeaderRow = sheet.createRow(currentRow++);
 
+                // Pre-index column to departments once per hall (eliminates O(N^2) linear scans)
+                Map<String, String> colToDepts = hallAllocations.stream()
+                        .filter(a -> a.seatCol() != null)
+                        .collect(Collectors.groupingBy(
+                                a -> a.seatCol().trim(),
+                                Collectors.mapping(
+                                        a -> shortenDept(a.department(), a.registerNumber()),
+                                        Collectors.collectingAndThen(Collectors.toSet(), set -> String.join("/", set))
+                                )
+                        ));
+
                 for (int c = 0; c < colCount; c++) {
                     int colBase = c * 2;
                     Cell snoHeader = gridHeaderRow.createCell(colBase);
@@ -108,11 +121,7 @@ public class ExcelServiceImpl implements ExcelService {
                     snoHeader.setCellStyle(gridHeaderStyle);
 
                     final String colName = engineColNames[c];
-                    String depts = hallAllocations.stream()
-                            .filter(a -> colName.equals(a.seatCol()))
-                            .map(a -> shortenDept(a.department(), a.registerNumber()))
-                            .distinct()
-                            .collect(Collectors.joining("/"));
+                    String depts = colToDepts.getOrDefault(colName, "");
 
                     Cell colHeader = gridHeaderRow.createCell(colBase + 1);
                     colHeader.setCellValue(columnLabels[c] + (depts.isEmpty() ? "" : " (" + depts + ")"));
@@ -179,6 +188,7 @@ public class ExcelServiceImpl implements ExcelService {
             }
 
             workbook.write(out);
+            workbook.dispose();
         } catch (Exception e) {
             throw new RuntimeException("Excel Generation Failed: " + e.getMessage(), e);
         }
@@ -225,7 +235,8 @@ public class ExcelServiceImpl implements ExcelService {
                 ));
         long grandTotal = summaryData.stream().mapToLong(SummaryAllocationView::studentCount).sum();
 
-        try (Workbook workbook = new XSSFWorkbook()) {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(200)) {
+            workbook.setCompressTempFiles(true);
             Sheet sheet = workbook.createSheet("Count Opening");
 
             // Styles
@@ -438,6 +449,7 @@ public class ExcelServiceImpl implements ExcelService {
             sheet.setColumnWidth(totalCol, 3200); // Grand Total
 
             workbook.write(out);
+            workbook.dispose();
         } catch (Exception e) {
             throw new RuntimeException("Matrix Excel Generation Failed: " + e.getMessage(), e);
         }
@@ -596,6 +608,9 @@ public class ExcelServiceImpl implements ExcelService {
         return com.exam.claims.util.ClaimConstants.COLLEGE_NAME;
     }
 
+    private static final java.util.regex.Pattern SUBJECT_CODE_PATTERN =
+            java.util.regex.Pattern.compile("\\b([A-Za-z]{2,6}\\s*[0-9]{3,5}[A-Za-z0-9-]*)\\b");
+
     private String resolveSubjectCode(String subjectCode, String subjectName) {
         if (subjectCode != null && !subjectCode.isBlank() && !"N/A".equalsIgnoreCase(subjectCode.trim())) {
             return subjectCode.replaceAll("\\s*\\(.*?\\)", "").trim();
@@ -603,15 +618,14 @@ public class ExcelServiceImpl implements ExcelService {
         if (subjectName != null && !subjectName.isBlank()) {
             String trimmedName = subjectName.trim();
             // Try extracting code pattern like CS3501, AD3351, EC8551, GE3151, MA3151 etc.
-            java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\b([A-Za-z]{2,6}\\s*[0-9]{3,5}[A-Za-z0-9-]*)\\b");
-            java.util.regex.Matcher m = p.matcher(trimmedName);
+            java.util.regex.Matcher m = SUBJECT_CODE_PATTERN.matcher(trimmedName);
             if (m.find()) {
                 return m.group(1).replaceAll("\\s+", "").toUpperCase();
             }
             if (trimmedName.contains("-")) {
                 String[] parts = trimmedName.split("-");
                 for (String part : parts) {
-                    java.util.regex.Matcher m2 = p.matcher(part.trim());
+                    java.util.regex.Matcher m2 = SUBJECT_CODE_PATTERN.matcher(part.trim());
                     if (m2.find()) {
                         return m2.group(1).replaceAll("\\s+", "").toUpperCase();
                     }

@@ -19,12 +19,12 @@ public class ParseResultCacheService {
     
     private final RedisTemplate<String, Object> redisTemplate;
 
-    // Bounded LRU cache (max 3 entries) to prevent heap exhaustion on 512MB hosting
+    // Bounded LRU cache (max 10 entries) - uses ~2MB heap while preventing preview re-parse delays
     private final Map<String, ParseResult> localCache = java.util.Collections.synchronizedMap(
             new java.util.LinkedHashMap<String, ParseResult>(16, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<String, ParseResult> eldest) {
-                    return size() > 3;
+                    return size() > 10;
                 }
             }
     );
