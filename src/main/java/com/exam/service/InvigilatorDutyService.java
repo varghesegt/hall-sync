@@ -237,9 +237,12 @@ public class InvigilatorDutyService {
                 Cell c5 = row.createCell(5); c5.setCellValue(duty.getDutyType()); c5.setCellStyle(borderStyle);
             }
 
-            for (int i = 0; i < headers.length; i++) {
-                sheet.autoSizeColumn(i);
-            }
+            sheet.setColumnWidth(0, 2000);  // S.No
+            sheet.setColumnWidth(1, 6500);  // Faculty Name
+            sheet.setColumnWidth(2, 3500);  // Employee ID
+            sheet.setColumnWidth(3, 3500);  // Department
+            sheet.setColumnWidth(4, 3800);  // Hall Name
+            sheet.setColumnWidth(5, 3500);  // Duty Type
 
             rowNum += 3;
             Row sigRow = sheet.createRow(rowNum);

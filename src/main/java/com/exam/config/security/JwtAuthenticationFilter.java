@@ -87,6 +87,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             TenantContext.setCurrentTenant(headerTenant.trim());
         }
         
+        // Fallback to query parameter (e.g. for window.open file downloads)
+        if (TenantContext.getCurrentTenant() == null) {
+            String paramTenant = request.getParameter("tenantId") != null ? request.getParameter("tenantId") : request.getParameter("tenant");
+            if (paramTenant != null && !paramTenant.isBlank()) {
+                TenantContext.setCurrentTenant(paramTenant.trim());
+            }
+        }
+        
+        // Default tenant fallback for operational data: all exams, allocations, batches, and duties reside in "krce"
+        String path = request.getRequestURI();
+        if (TenantContext.getCurrentTenant() == null && (path == null || !path.startsWith("/api/v1/admin"))) {
+            TenantContext.setCurrentTenant("krce");
+        }
+        
         try {
             chain.doFilter(request, response);
         } finally {

@@ -119,9 +119,11 @@ public class AttendanceConsolidationService {
                 }
             }
 
-            for (int i = 0; i < headers.length; i++) {
-                sheet.autoSizeColumn(i);
-            }
+            sheet.setColumnWidth(0, 2000);  // S.No
+            sheet.setColumnWidth(1, 4800);  // Register No
+            sheet.setColumnWidth(2, 6500);  // Student Name
+            sheet.setColumnWidth(3, 3500);  // Department
+            sheet.setColumnWidth(4, 3800);  // Hall Name
 
             rowNum += 4;
             Row sigRow = sheet.createRow(rowNum);

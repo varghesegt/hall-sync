@@ -122,7 +122,7 @@ public class ExcelServiceImpl implements ExcelService {
                 // Grid Body
                 Map<String, Map<Integer, PdfAllocationView>> seatMap = hallAllocations.stream()
                         .collect(Collectors.groupingBy(PdfAllocationView::seatCol,
-                                Collectors.toMap(PdfAllocationView::seatRow, a -> a)));
+                                Collectors.toMap(PdfAllocationView::seatRow, a -> a, (first, second) -> first)));
 
                 for (int r = 1; r <= maxRow; r++) {
                     Row dataRow = sheet.createRow(currentRow++);
@@ -171,9 +171,11 @@ public class ExcelServiceImpl implements ExcelService {
                 currentRow++;
             }
 
-            // Auto-size columns for readability
-            for (int i = 0; i < (8 * 2); i++) { // max possible is 8 cols * 2
-                sheet.autoSizeColumn(i);
+            // Explicit column widths: S.No (1800) and Register No/Header (5200)
+            // Avoids sheet.autoSizeColumn() native AWT font metrics which causes OOM crash on Render
+            for (int c = 0; c < 8; c++) {
+                sheet.setColumnWidth(c * 2, 1800);      // S.No
+                sheet.setColumnWidth(c * 2 + 1, 5200);  // Register No / Dept
             }
 
             workbook.write(out);
@@ -427,10 +429,13 @@ public class ExcelServiceImpl implements ExcelService {
             sigCell.setCellStyle(createSignatureStyle(workbook, HorizontalAlignment.RIGHT, VerticalAlignment.BOTTOM));
             sheet.addMergedRegion(new CellRangeAddress(sigRow.getRowNum(), sigRow.getRowNum(), sigStartCol, totalCol));
 
-            // Auto-size columns
-            for (int i = 0; i <= totalCol; i++) {
-                sheet.autoSizeColumn(i);
+            // Explicit column widths avoiding sheet.autoSizeColumn() AWT font crash
+            sheet.setColumnWidth(0, 3600); // Hall
+            sheet.setColumnWidth(1, 6000); // Department
+            for (int i = 2; i < totalCol; i++) {
+                sheet.setColumnWidth(i, 3600); // Subject Code counts
             }
+            sheet.setColumnWidth(totalCol, 3200); // Grand Total
 
             workbook.write(out);
         } catch (Exception e) {

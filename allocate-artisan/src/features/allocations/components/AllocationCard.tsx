@@ -80,7 +80,7 @@ export function AllocationCard({ sessionId, selectedRooms = [] }: AllocationCard
     if (!allocation.batchId) return;
     setIsDownloadingSchedule(true);
     try {
-      const response = await apiClient.get(`/duties/batch/${allocation.batchId}/duty-schedule-excel`, { responseType: "blob" });
+      const response = await apiClient.get(`/duties/batch/${allocation.batchId}/duty-schedule-excel`, { responseType: "blob", timeout: 120000 });
       const contentDisposition = response.headers["content-disposition"];
       let filename = `Invigilation_Duty_Schedule.xlsx`;
       if (contentDisposition) {

@@ -52,7 +52,7 @@ export const downloadInternalBatchPdf = async (batchId: string): Promise<{blob: 
   const response = await apiClient.get<Blob>(`${INTERNAL_BASE}/allocation-batches/${batchId}/pdf`, {
     responseType: "blob",
     headers: { Accept: "application/pdf" },
-    timeout: 30000,
+    timeout: 120000,
   });
   let filename = `internal-allocation-${batchId}.pdf`;
   const contentDisposition = response.headers["content-disposition"];
@@ -67,7 +67,7 @@ export const downloadInternalBatchExcel = async (batchId: string): Promise<{blob
   const response = await apiClient.get<Blob>(`${INTERNAL_BASE}/allocation-batches/${batchId}/excel`, {
     responseType: "blob",
     headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
-    timeout: 30000,
+    timeout: 120000,
   });
   let filename = `internal-allocation-${batchId}.xlsx`;
   const contentDisposition = response.headers["content-disposition"];
@@ -82,7 +82,7 @@ export const downloadInternalBatchSummaryExcel = async (batchId: string): Promis
   const response = await apiClient.get<Blob>(`${INTERNAL_BASE}/allocation-batches/${batchId}/summary-excel`, {
     responseType: "blob",
     headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
-    timeout: 30000,
+    timeout: 120000,
   });
   let filename = `internal-summary-${batchId}.xlsx`;
   const contentDisposition = response.headers["content-disposition"];

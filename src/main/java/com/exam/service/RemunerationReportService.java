@@ -136,9 +136,13 @@ public class RemunerationReportService {
             boldCurrency.setFont(colFont);
             grandTotalCell.setCellStyle(boldCurrency);
 
-            for (int i = 0; i < headers.length; i++) {
-                sheet.autoSizeColumn(i);
-            }
+            sheet.setColumnWidth(0, 2000);  // S.No
+            sheet.setColumnWidth(1, 6500);  // Faculty Name
+            sheet.setColumnWidth(2, 3500);  // Employee ID
+            sheet.setColumnWidth(3, 3500);  // Department
+            sheet.setColumnWidth(4, 3500);  // Total Sessions
+            sheet.setColumnWidth(5, 3000);  // Rate
+            sheet.setColumnWidth(6, 4500);  // Total Amount
 
             rowNum += 4;
             Row sigRow = sheet.createRow(rowNum);

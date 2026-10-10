@@ -63,12 +63,11 @@ public class InternalBatchController {
     public ResponseEntity<StreamingResponseBody> downloadPdf(@PathVariable UUID batchId) {
         String mdcToken = MDC.get("allocationRequestId");
         String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
+        final String resolvedTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "krce";
 
         StreamingResponseBody stream = out -> {
             try {
-                if (tenantId != null) {
-                    com.exam.config.tenant.TenantContext.setCurrentTenant(tenantId);
-                }
+                com.exam.config.tenant.TenantContext.setCurrentTenant(resolvedTenant);
                 if (mdcToken != null) MDC.put("allocationRequestId", mdcToken);
                 batchService.generatePdf(batchId, out);
                 out.flush();
@@ -102,12 +101,11 @@ public class InternalBatchController {
     public ResponseEntity<StreamingResponseBody> downloadExcel(@PathVariable UUID batchId) {
         String mdcToken = MDC.get("allocationRequestId");
         String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
+        final String resolvedTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "krce";
 
         StreamingResponseBody stream = out -> {
             try {
-                if (tenantId != null) {
-                    com.exam.config.tenant.TenantContext.setCurrentTenant(tenantId);
-                }
+                com.exam.config.tenant.TenantContext.setCurrentTenant(resolvedTenant);
                 if (mdcToken != null) MDC.put("allocationRequestId", mdcToken);
                 batchService.generateExcel(batchId, out);
                 out.flush();
@@ -141,12 +139,11 @@ public class InternalBatchController {
     public ResponseEntity<StreamingResponseBody> downloadSummaryExcel(@PathVariable UUID batchId) {
         String mdcToken = MDC.get("allocationRequestId");
         String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
+        final String resolvedTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "krce";
 
         StreamingResponseBody stream = out -> {
             try {
-                if (tenantId != null) {
-                    com.exam.config.tenant.TenantContext.setCurrentTenant(tenantId);
-                }
+                com.exam.config.tenant.TenantContext.setCurrentTenant(resolvedTenant);
                 if (mdcToken != null) MDC.put("allocationRequestId", mdcToken);
                 batchService.generateSummaryExcel(batchId, out);
                 out.flush();

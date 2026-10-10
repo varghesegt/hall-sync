@@ -236,7 +236,7 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
                 setIsDownloadingSchedule(true);
                 try {
                   const { default: apiClient } = await import("@/api/axios");
-                  const response = await apiClient.get(`/duties/batch/${resolvedBatchId}/duty-schedule-excel`, { responseType: "blob" });
+                  const response = await apiClient.get(`/duties/batch/${resolvedBatchId}/duty-schedule-excel`, { responseType: "blob", timeout: 120000 });
                   const contentDisposition = response.headers["content-disposition"];
                   let filename = `Internal_Duty_Schedule.xlsx`;
                   if (contentDisposition) {
