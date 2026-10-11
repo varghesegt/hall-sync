@@ -1,4 +1,5 @@
 import apiClient from "./axios";
+import { extractFilename } from "@/lib/downloadHelper";
 
 export interface UploadResponse {
   fileId: string;
@@ -107,13 +108,7 @@ export const downloadBatchPdf = async (batchId: string): Promise<{blob: Blob, fi
     timeout: 120000,
   });
   
-  let filename = `allocation-${batchId}.pdf`;
-  const contentDisposition = response.headers["content-disposition"];
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?([^"]+)"?/);
-    if (match && match[1]) filename = match[1];
-  }
-  
+  const filename = extractFilename(response.headers["content-disposition"], `allocation-${batchId}.pdf`);
   return { blob: response.data, filename };
 };
 
@@ -126,13 +121,7 @@ export const downloadBatchExcel = async (batchId: string): Promise<{blob: Blob, 
     timeout: 120000,
   });
   
-  let filename = `allocation-${batchId}.xlsx`;
-  const contentDisposition = response.headers["content-disposition"];
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?([^"]+)"?/);
-    if (match && match[1]) filename = match[1];
-  }
-  
+  const filename = extractFilename(response.headers["content-disposition"], `allocation-${batchId}.xlsx`);
   return { blob: response.data, filename };
 };
 
@@ -145,13 +134,7 @@ export const downloadBatchSummaryExcel = async (batchId: string): Promise<{blob:
     timeout: 30000,
   });
   
-  let filename = `summary-${batchId}.xlsx`;
-  const contentDisposition = response.headers["content-disposition"];
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?([^"]+)"?/);
-    if (match && match[1]) filename = match[1];
-  }
-  
+  const filename = extractFilename(response.headers["content-disposition"], `summary-${batchId}.xlsx`);
   return { blob: response.data, filename };
 };
 
@@ -234,12 +217,6 @@ export const downloadIntegrityCertificate = async (batchId: string): Promise<{bl
     timeout: 30000,
   });
 
-  let filename = `integrity-certificate-${batchId}.pdf`;
-  const contentDisposition = response.headers["content-disposition"];
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?([^"]+)"?/);
-    if (match && match[1]) filename = match[1];
-  }
-
+  const filename = extractFilename(response.headers["content-disposition"], `integrity-certificate-${batchId}.pdf`);
   return { blob: response.data, filename };
 };

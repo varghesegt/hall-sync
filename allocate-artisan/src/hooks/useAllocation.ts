@@ -9,6 +9,7 @@ import {
   type AllocationStatus,
 } from "@/api/allocationApi";
 import type { ApiError } from "@/api/axios";
+import { triggerFileDownload } from "@/lib/downloadHelper";
 
 export function useAllocation(sessionId: string | null, selectedRooms: string[] = []) {
   const queryClient = useQueryClient();
@@ -50,40 +51,19 @@ export function useAllocation(sessionId: string | null, selectedRooms: string[] 
   const downloadPdf = useCallback(async () => {
     if (!resolvedBatchId) return;
     const { blob, filename } = await downloadBatchPdf(resolvedBatchId);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await triggerFileDownload(blob, filename);
   }, [resolvedBatchId]);
 
   const downloadExcel = useCallback(async () => {
     if (!resolvedBatchId) return;
     const { blob, filename } = await downloadBatchExcel(resolvedBatchId);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await triggerFileDownload(blob, filename);
   }, [resolvedBatchId]);
 
   const downloadSummaryExcel = useCallback(async () => {
     if (!resolvedBatchId) return;
     const { blob, filename } = await downloadBatchSummaryExcel(resolvedBatchId);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await triggerFileDownload(blob, filename);
   }, [resolvedBatchId]);
 
   return {

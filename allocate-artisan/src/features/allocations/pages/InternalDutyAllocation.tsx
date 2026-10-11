@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { BatchSelector } from "@/features/claims/components/BatchSelector";
 import { getBatchPreview, PreviewSeat } from "@/api/allocationApi";
 import { Checkbox } from "@/components/ui/checkbox";
+import { triggerFileDownload, extractFilename } from "@/lib/downloadHelper";
 
 interface HallSummary {
   hallId: string;
@@ -187,20 +188,11 @@ export default function InternalDutyAllocation() {
     if (!selectedBatch) return;
     try {
       const response = await dutyApi.downloadWord(selectedBatch);
-      const contentDisposition = response.headers["content-disposition"];
-      let filename = `Internal_Exam_Duty_Chart_${new Date().toISOString().split("T")[0]}.docx`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) filename = match[1];
-      }
-
-      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
+      const filename = extractFilename(
+        response.headers["content-disposition"],
+        `Internal_Exam_Duty_Chart_${new Date().toISOString().split("T")[0]}.docx`
+      );
+      await triggerFileDownload(new Blob([response.data as BlobPart]), filename);
       toast.success(`Downloaded ${filename}`);
     } catch (error) {
       toast.error("Failed to download Word duty chart");
@@ -211,20 +203,11 @@ export default function InternalDutyAllocation() {
     if (!selectedBatch) return;
     try {
       const response = await dutyApi.downloadExcel(selectedBatch);
-      const contentDisposition = response.headers["content-disposition"];
-      let filename = `Internal_Exam_Duty_Sheet_${new Date().toISOString().split("T")[0]}.xlsx`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) filename = match[1];
-      }
-
-      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
+      const filename = extractFilename(
+        response.headers["content-disposition"],
+        `Internal_Exam_Duty_Sheet_${new Date().toISOString().split("T")[0]}.xlsx`
+      );
+      await triggerFileDownload(new Blob([response.data as BlobPart]), filename);
       toast.success(`Downloaded ${filename}`);
     } catch (error) {
       toast.error("Failed to download Excel sheet");
@@ -235,20 +218,11 @@ export default function InternalDutyAllocation() {
     if (!selectedBatch) return;
     try {
       const response = await dutyApi.downloadDutySchedule(selectedBatch);
-      const contentDisposition = response.headers["content-disposition"];
-      let filename = `Internal_Exam_Duty_Schedule_${new Date().toISOString().split("T")[0]}.xlsx`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) filename = match[1];
-      }
-
-      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
+      const filename = extractFilename(
+        response.headers["content-disposition"],
+        `Internal_Exam_Duty_Schedule_${new Date().toISOString().split("T")[0]}.xlsx`
+      );
+      await triggerFileDownload(new Blob([response.data as BlobPart]), filename);
       toast.success(`Downloaded ${filename}`);
     } catch (error) {
       toast.error("Failed to download Duty Schedule");

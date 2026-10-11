@@ -8,6 +8,7 @@ import type {
   PreviewSeat,
   IntegritySummary,
 } from "./allocationApi";
+import { extractFilename } from "@/lib/downloadHelper";
 
 // ==================== INTERNAL EXAM API ====================
 // All endpoints under /api/v1/internal/*
@@ -48,18 +49,14 @@ export const getInternalLatestBatch = async (sessionId: string): Promise<BatchRe
   return data;
 };
 
+
 export const downloadInternalBatchPdf = async (batchId: string): Promise<{blob: Blob, filename: string}> => {
   const response = await apiClient.get<Blob>(`${INTERNAL_BASE}/allocation-batches/${batchId}/pdf`, {
     responseType: "blob",
     headers: { Accept: "application/pdf" },
     timeout: 120000,
   });
-  let filename = `internal-allocation-${batchId}.pdf`;
-  const contentDisposition = response.headers["content-disposition"];
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?([^"]+)"?/);
-    if (match && match[1]) filename = match[1];
-  }
+  const filename = extractFilename(response.headers["content-disposition"], `internal-allocation-${batchId}.pdf`);
   return { blob: response.data, filename };
 };
 
@@ -69,12 +66,7 @@ export const downloadInternalBatchExcel = async (batchId: string): Promise<{blob
     headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
     timeout: 120000,
   });
-  let filename = `internal-allocation-${batchId}.xlsx`;
-  const contentDisposition = response.headers["content-disposition"];
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?([^"]+)"?/);
-    if (match && match[1]) filename = match[1];
-  }
+  const filename = extractFilename(response.headers["content-disposition"], `internal-allocation-${batchId}.xlsx`);
   return { blob: response.data, filename };
 };
 
@@ -84,12 +76,7 @@ export const downloadInternalBatchSummaryExcel = async (batchId: string): Promis
     headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
     timeout: 120000,
   });
-  let filename = `internal-summary-${batchId}.xlsx`;
-  const contentDisposition = response.headers["content-disposition"];
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?([^"]+)"?/);
-    if (match && match[1]) filename = match[1];
-  }
+  const filename = extractFilename(response.headers["content-disposition"], `internal-summary-${batchId}.xlsx`);
   return { blob: response.data, filename };
 };
 

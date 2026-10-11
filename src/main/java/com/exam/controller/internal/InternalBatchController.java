@@ -79,10 +79,11 @@ public class InternalBatchController {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
+        String safeFilename = doc.filename().replaceAll("[^a-zA-Z0-9._ -]", "_");
         headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
-                .filename(doc.filename(), java.nio.charset.StandardCharsets.UTF_8)
+                .filename(safeFilename)
                 .build());
-        headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION);
+        headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition, Content-Length");
         headers.setCacheControl(CacheControl.noCache().getHeaderValue());
         headers.add(HttpHeaders.PRAGMA, "no-cache");
         headers.add(HttpHeaders.EXPIRES, "0");
@@ -113,10 +114,11 @@ public class InternalBatchController {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        String safeFilename = doc.filename().replaceAll("[^a-zA-Z0-9._ -]", "_");
         headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
-                .filename(doc.filename(), java.nio.charset.StandardCharsets.UTF_8)
+                .filename(safeFilename)
                 .build());
-        headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION);
+        headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition, Content-Length");
         headers.setCacheControl(CacheControl.noCache().getHeaderValue());
         headers.add(HttpHeaders.PRAGMA, "no-cache");
         headers.add(HttpHeaders.EXPIRES, "0");
@@ -147,10 +149,11 @@ public class InternalBatchController {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        String safeFilename = doc.filename().replaceAll("[^a-zA-Z0-9._ -]", "_");
         headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
-                .filename(doc.filename(), java.nio.charset.StandardCharsets.UTF_8)
+                .filename(safeFilename)
                 .build());
-        headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION);
+        headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition, Content-Length");
         headers.setCacheControl(CacheControl.noCache().getHeaderValue());
         headers.add(HttpHeaders.PRAGMA, "no-cache");
         headers.add(HttpHeaders.EXPIRES, "0");

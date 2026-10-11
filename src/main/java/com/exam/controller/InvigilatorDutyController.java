@@ -67,6 +67,7 @@ public class InvigilatorDutyController {
         String filename = getFormattedFilename(batchId, "xlsx");
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
+        response.setHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition, Content-Length");
         dutyService.generateDutyExcel(batchId, response.getOutputStream());
     }
 
@@ -76,6 +77,7 @@ public class InvigilatorDutyController {
         byte[] docBytes = dutyService.generateDutyWord(batchId);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition, Content-Length")
                 .contentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
                 .body(docBytes);
     }
@@ -91,6 +93,7 @@ public class InvigilatorDutyController {
         String filename = getFormattedFilename(batchId, "xlsx").replace("Duty_Chart", "Duty_Schedule");
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
+        response.setHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition, Content-Length");
         dutyScheduleService.generateDutyScheduleExcel(batchId, response.getOutputStream());
     }
 

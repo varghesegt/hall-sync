@@ -38,15 +38,23 @@ export interface ApiError {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const apiError: ApiError = {
       status: 0,
       message: "An unexpected error occurred. Please try again.",
     };
 
     if (error.response) {
-      const { status, data } = error.response;
+      let { status, data } = error.response;
       apiError.status = status;
+
+      // When responseType was 'blob', data is a Blob object, not a parsed JSON object!
+      if (data instanceof Blob) {
+        try {
+          const text = await data.text();
+          data = JSON.parse(text);
+        } catch {}
+      }
 
       switch (status) {
         case 401:

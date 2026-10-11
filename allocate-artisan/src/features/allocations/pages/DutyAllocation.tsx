@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { BatchSelector } from '@/features/claims/components/BatchSelector';
 import { getBatchPreview, PreviewSeat } from "@/api/allocationApi";
 import { Checkbox } from "@/components/ui/checkbox";
+import { triggerFileDownload, extractFilename } from "@/lib/downloadHelper";
 
 export default function DutyAllocation() {
   const [selectedBatch, setSelectedBatch] = useState<string>("");
@@ -144,20 +145,11 @@ export default function DutyAllocation() {
     if (!selectedBatch) return;
     try {
       const response = await dutyApi.downloadExcel(selectedBatch);
-      const contentDisposition = response.headers["content-disposition"];
-      let filename = `Semester_Exam_Duty_Sheet_${new Date().toISOString().split("T")[0]}.xlsx`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) filename = match[1];
-      }
-
-      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
+      const filename = extractFilename(
+        response.headers["content-disposition"],
+        `Semester_Exam_Duty_Sheet_${new Date().toISOString().split("T")[0]}.xlsx`
+      );
+      await triggerFileDownload(new Blob([response.data as BlobPart]), filename);
       toast.success(`Downloaded ${filename}`);
     } catch (error) {
       toast.error("Failed to download duty sheet");
@@ -168,23 +160,14 @@ export default function DutyAllocation() {
     if (!selectedBatch) return;
     try {
       const response = await dutyApi.downloadWord(selectedBatch);
-      const contentDisposition = response.headers["content-disposition"];
-      let filename = `Semester_Exam_Duty_Chart_${new Date().toISOString().split("T")[0]}.docx`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) filename = match[1];
-      }
-
-      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
+      const filename = extractFilename(
+        response.headers["content-disposition"],
+        `Semester_Exam_Duty_Chart_${new Date().toISOString().split("T")[0]}.docx`
+      );
+      await triggerFileDownload(new Blob([response.data as BlobPart]), filename);
       toast.success(`Downloaded ${filename}`);
     } catch (error) {
-      toast.error("Failed to download Word duty sheet");
+      toast.error("Failed to download duty chart");
     }
   };
 

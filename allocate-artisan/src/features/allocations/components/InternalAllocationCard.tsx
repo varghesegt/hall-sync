@@ -17,6 +17,7 @@ import { IntegrityAuditBanner } from "@/components/IntegrityAuditBanner";
 import { AlertCircle, Download, Play, ClipboardList, ShieldCheck } from "lucide-react";
 import { getIntegritySummary, type IntegritySummary } from "@/api/allocationApi";
 import { cn } from "@/lib/utils";
+import { triggerFileDownload, extractFilename } from "@/lib/downloadHelper";
 
 interface InternalAllocationCardProps {
   sessionId: string | null;
@@ -106,24 +107,7 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
     if (!resolvedBatchId) return;
     try {
       const { blob, filename } = await downloadFn(resolvedBatchId);
-      if (blob.type === "application/json" || (blob.type.includes("json") && blob.size < 1000)) {
-        const text = await blob.text();
-        let msg = "Failed to download file. Please try again.";
-        try {
-          const parsed = JSON.parse(text);
-          if (parsed.message) msg = parsed.message;
-        } catch {}
-        alert(msg);
-        return;
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await triggerFileDownload(blob, filename);
     } catch (err: any) {
       console.error("Download failed:", err);
       alert(err.message || "Failed to download file. Please try again.");
@@ -257,20 +241,8 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
                 try {
                   const { default: apiClient } = await import("@/api/axios");
                   const response = await apiClient.get(`/duties/batch/${resolvedBatchId}/duty-schedule-excel`, { responseType: "blob", timeout: 120000 });
-                  const contentDisposition = response.headers["content-disposition"];
-                  let filename = `Internal_Duty_Schedule.xlsx`;
-                  if (contentDisposition) {
-                    const match = contentDisposition.match(/filename="?([^";]+)"?/);
-                    if (match && match[1]) filename = match[1];
-                  }
-                  const url = URL.createObjectURL(new Blob([response.data as BlobPart]));
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = filename;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
+                  const filename = extractFilename(response.headers["content-disposition"], `Internal_Duty_Schedule.xlsx`);
+                  await triggerFileDownload(new Blob([response.data as BlobPart]), filename);
                 } catch {
                   alert("Failed to download Duty Schedule. Please try again.");
                 } finally {

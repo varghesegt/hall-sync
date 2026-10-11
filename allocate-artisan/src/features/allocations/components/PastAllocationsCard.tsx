@@ -15,6 +15,7 @@ import { downloadInternalBatchPdf, downloadInternalBatchExcel, downloadInternalB
 import apiClient from "@/api/axios";
 import { Download, Search, FileText, ClipboardList, CheckCircle2, RefreshCw, Calendar, Layers, Clock, Hash } from "lucide-react";
 import { toast } from "sonner";
+import { triggerFileDownload, extractFilename } from "@/lib/downloadHelper";
 
 interface BatchHistoryItem {
   id: string;
@@ -146,54 +147,28 @@ export function PastAllocationsCard({ isInternal = false }: PastAllocationsCardP
         const { blob, filename } = isInternal 
           ? await downloadInternalBatchPdf(batchId)
           : await downloadBatchPdf(batchId);
-        triggerFileSave(blob, filename);
+        await triggerFileDownload(blob, filename);
       } else if (type === "excel") {
         const { blob, filename } = isInternal
           ? await downloadInternalBatchExcel(batchId)
           : await downloadBatchExcel(batchId);
-        triggerFileSave(blob, filename);
+        await triggerFileDownload(blob, filename);
       } else if (type === "summary") {
         const { blob, filename } = isInternal
           ? await downloadInternalBatchSummaryExcel(batchId)
           : await downloadBatchSummaryExcel(batchId);
-        triggerFileSave(blob, filename);
+        await triggerFileDownload(blob, filename);
       } else if (type === "duty") {
         const response = await apiClient.get(`/duties/batch/${batchId}/duty-schedule-excel`, { responseType: "blob" });
-        let filename = `Duty_Schedule_${batchId.substring(0, 8)}.xlsx`;
-        const contentDisposition = response.headers["content-disposition"];
-        if (contentDisposition) {
-          const match = contentDisposition.match(/filename="?([^";]+)"?/);
-          if (match && match[1]) filename = match[1];
-        }
-        triggerFileSave(new Blob([response.data as BlobPart]), filename);
+        const filename = extractFilename(response.headers["content-disposition"], `Duty_Schedule_${batchId.substring(0, 8)}.xlsx`);
+        await triggerFileDownload(new Blob([response.data as BlobPart]), filename);
       }
       toast.success("Download started successfully!");
-    } catch {
-      toast.error("Failed to download file. Please try again.");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download file. Please try again.");
     } finally {
       setDownloadingType(null);
     }
-  };
-
-  const triggerFileSave = async (blob: Blob, filename: string) => {
-    if (blob.type === "application/json" || (blob.type.includes("json") && blob.size < 1000)) {
-      try {
-        const text = await blob.text();
-        const parsed = JSON.parse(text);
-        if (parsed.message) {
-          toast.error(parsed.message);
-          return;
-        }
-      } catch {}
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   // Helper formatting for clean professional display

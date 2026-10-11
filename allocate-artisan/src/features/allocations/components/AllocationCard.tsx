@@ -9,6 +9,7 @@ import { AlertCircle, Download, Play, ClipboardList, ShieldCheck } from "lucide-
 import { getIntegritySummary, downloadIntegrityCertificate, type IntegritySummary } from "@/api/allocationApi";
 import apiClient from "@/api/axios";
 import { cn } from "@/lib/utils";
+import { triggerFileDownload, extractFilename } from "@/lib/downloadHelper";
 
 interface AllocationCardProps {
   sessionId: string | null;
@@ -81,20 +82,8 @@ export function AllocationCard({ sessionId, selectedRooms = [] }: AllocationCard
     setIsDownloadingSchedule(true);
     try {
       const response = await apiClient.get(`/duties/batch/${allocation.batchId}/duty-schedule-excel`, { responseType: "blob", timeout: 120000 });
-      const contentDisposition = response.headers["content-disposition"];
-      let filename = `Invigilation_Duty_Schedule.xlsx`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) filename = match[1];
-      }
-      const url = URL.createObjectURL(new Blob([response.data as BlobPart]));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const filename = extractFilename(response.headers["content-disposition"], `Invigilation_Duty_Schedule.xlsx`);
+      await triggerFileDownload(new Blob([response.data as BlobPart]), filename);
     } catch {
       alert("Failed to download Duty Schedule. Please try again.");
     } finally {
@@ -107,14 +96,7 @@ export function AllocationCard({ sessionId, selectedRooms = [] }: AllocationCard
     setIsDownloadingCert(true);
     try {
       const { blob, filename } = await downloadIntegrityCertificate(allocation.batchId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await triggerFileDownload(blob, filename);
     } catch (error) {
       console.error("Failed to download Integrity Certificate:", error);
     } finally {
