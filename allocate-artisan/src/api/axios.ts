@@ -74,6 +74,12 @@ apiClient.interceptors.response.use(
                   }
               }
               apiError.details = formatted;
+              if (formatted["Global"] && formatted["Global"].length > 0) {
+                  const firstDetail = formatted["Global"][0];
+                  if (!apiError.message || apiError.message.includes("fatal error") || apiError.message.startsWith("Excel parsing failed with") || apiError.message.includes("Validation failed")) {
+                      apiError.message = firstDetail;
+                  }
+              }
           } else {
               apiError.details = data?.errors || data?.details;
           }

@@ -84,6 +84,10 @@ public class InternalUploadService {
             if (existing.isPresent()) {
                 logger.info("Duplicate Excel upload detected: fileId={}", existing.get().getId());
                 finalFile = existing.get();
+                if ("PARSE_FAILED".equals(existing.get().getStatus()) && result.status() != ParseStatus.FAILED) {
+                    existing.get().setStatus("PARSED");
+                    fileRepository.save(existing.get());
+                }
                 status = existing.get().getStatus();
             } else {
                 throw new DuplicateFileException("Hash conflict: " + result.sourceHash());
@@ -100,8 +104,10 @@ public class InternalUploadService {
                     .filter(e -> "FATAL".equals(e.severity()))
                     .map(ParseError::message)
                     .collect(Collectors.toList());
-            throw new PreflightValidationException(
-                    "Excel parsing failed with " + failures.size() + " fatal errors", failures);
+            String primaryMsg = (failures != null && !failures.isEmpty())
+                    ? failures.get(0)
+                    : "Excel parsing failed. Please verify the file has valid student records.";
+            throw new PreflightValidationException(primaryMsg, failures != null ? failures : List.of(primaryMsg));
         }
 
         logger.info("Excel upload accepted: fileId={}, students={}", finalFile.getId(), result.students().size());

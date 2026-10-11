@@ -24,7 +24,8 @@ export function ExcelUploadCard({ onSuccess, fileId, onReset }: ExcelUploadCardP
   });
 
   const handleFile = (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
       return;
     }
     setFileName(file.name);
@@ -58,7 +59,7 @@ export function ExcelUploadCard({ onSuccess, fileId, onReset }: ExcelUploadCardP
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-base font-bold text-slate-900">1. Upload Student List</CardTitle>
-            <CardDescription>Upload an Excel (.xlsx) file containing the student roster</CardDescription>
+            <CardDescription>Upload an Excel (.xlsx or .xls) file containing the student roster</CardDescription>
           </div>
           {isComplete && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
         </div>
@@ -67,7 +68,7 @@ export function ExcelUploadCard({ onSuccess, fileId, onReset }: ExcelUploadCardP
         <input
           ref={inputRef}
           type="file"
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -100,15 +101,28 @@ export function ExcelUploadCard({ onSuccess, fileId, onReset }: ExcelUploadCardP
                   <span className="text-sm font-medium text-slate-600">
                     {isDragOver ? "Drop Excel file here" : "Drag & drop or click to select Excel file"}
                   </span>
-                  <span className="text-xs text-slate-400">Only .xlsx files accepted</span>
+                  <span className="text-xs text-slate-400">Excel files (.xlsx, .xls) accepted</span>
                 </div>
               )}
             </div>
 
             {upload.isError && (
-              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{upload.error.message}</span>
+              <div className="flex flex-col gap-1.5 rounded-lg border border-rose-200 bg-rose-50/80 p-3.5 text-sm text-rose-800 shadow-2xs">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-rose-900">{upload.error.message}</p>
+                    {upload.error.details && Object.entries(upload.error.details).map(([field, msgs]) => (
+                      <div key={field} className="text-xs text-rose-700 pl-1">
+                        {field !== "Global" && <span className="font-medium text-rose-800">{field}: </span>}
+                        {msgs.join("; ")}
+                      </div>
+                    ))}
+                    <p className="text-xs text-rose-600/90 pt-1.5 border-t border-rose-200/60 mt-1">
+                      💡 Ensure your spreadsheet includes a column for <strong className="font-semibold text-rose-800">Roll/Register Number</strong> (e.g. <em>Register Number</em> or <em>Reg No</em>).
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>

@@ -31,9 +31,12 @@ public class InternalUploadController {
         }
 
         String filename = file.getOriginalFilename();
-        if (filename != null && !filename.toLowerCase().endsWith(".xlsx")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                    java.util.Map.of("error", "BAD_REQUEST", "message", "Only .xlsx files are accepted"));
+        if (filename != null) {
+            String lower = filename.toLowerCase();
+            if (!lower.endsWith(".xlsx") && !lower.endsWith(".xls")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                        java.util.Map.of("error", "BAD_REQUEST", "message", "Only Excel files (.xlsx, .xls) are accepted"));
+            }
         }
 
         logger.info("Internal Excel upload: {}, size: {}", file.getOriginalFilename(), file.getSize());
@@ -44,10 +47,11 @@ public class InternalUploadController {
             throw e;
         } catch (Exception e) {
             logger.error("Failed to process Excel upload", e);
+            String msg = e.getMessage() != null ? e.getMessage() : "Unknown error";
             return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(
                     java.util.Map.of("error", "PREFLIGHT_FAILED",
-                            "message", "Failed to parse Excel: " + (e.getMessage() != null ? e.getMessage() : "Unknown error"),
-                            "details", java.util.Collections.emptyList()));
+                            "message", "Failed to parse Excel: " + msg,
+                            "details", java.util.List.of(msg)));
         }
     }
 
