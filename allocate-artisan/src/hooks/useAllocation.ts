@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   triggerAllocation,
   getLatestBatch,
@@ -11,6 +11,7 @@ import {
 import type { ApiError } from "@/api/axios";
 
 export function useAllocation(sessionId: string | null, selectedRooms: string[] = []) {
+  const queryClient = useQueryClient();
   const [isTriggered, setIsTriggered] = useState(false);
   const [batchId, setBatchId] = useState<string | null>(null);
 
@@ -22,6 +23,8 @@ export function useAllocation(sessionId: string | null, selectedRooms: string[] 
     onSuccess: (data) => {
       setBatchId(data.batchId);
       setIsTriggered(true);
+      queryClient.invalidateQueries({ queryKey: ["batch-status", sessionId] });
+      queryClient.refetchQueries({ queryKey: ["batch-status", sessionId] });
     },
   });
 
@@ -31,13 +34,14 @@ export function useAllocation(sessionId: string | null, selectedRooms: string[] 
     enabled: !!sessionId,
     refetchInterval: (query) => {
       if (query.state.error) return false;
-      const status = query.state.data?.status;
-      if (status === "RUNNING") return 3000;
+      const currentStatus = query.state.data?.status;
+      if (currentStatus === "ACTIVE" || currentStatus === "FAILED") return false;
+      if (isTriggered || currentStatus === "RUNNING") return 2000;
       return false;
     },
-    retry: 1,
+    retry: 2,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
-    staleTime: 5000,
+    staleTime: 0,
   });
 
   const status: AllocationStatus = polling.data?.status ?? "NOT_STARTED";

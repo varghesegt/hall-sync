@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   triggerInternalAllocation,
   getInternalLatestBatch,
@@ -24,6 +24,7 @@ interface InternalAllocationCardProps {
 }
 
 export function InternalAllocationCard({ sessionId, selectedRooms = [] }: InternalAllocationCardProps) {
+  const queryClient = useQueryClient();
   const [isTriggered, setIsTriggered] = useState(false);
   const [batchId, setBatchId] = useState<string | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -41,6 +42,8 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
     onSuccess: (data) => {
       setBatchId(data.batchId);
       setIsTriggered(true);
+      queryClient.invalidateQueries({ queryKey: ["internal-batch-status", sessionId] });
+      queryClient.refetchQueries({ queryKey: ["internal-batch-status", sessionId] });
     },
   });
 
@@ -50,13 +53,13 @@ export function InternalAllocationCard({ sessionId, selectedRooms = [] }: Intern
     enabled: !!sessionId,
     refetchInterval: (query) => {
       if (query.state.error) return false;
-      const status = query.state.data?.status;
-      // Only poll backend when an allocation is actively in progress
-      if (status === "RUNNING") return 3000;
+      const currentStatus = query.state.data?.status;
+      if (currentStatus === "ACTIVE" || currentStatus === "FAILED") return false;
+      if (isTriggered || currentStatus === "RUNNING") return 2000;
       return false;
     },
-    retry: 1,
-    staleTime: 5000,
+    retry: 2,
+    staleTime: 0,
   });
 
   const status: AllocationStatus = polling.data?.status ?? "NOT_STARTED";
