@@ -1,4 +1,4 @@
-name: hallsync
+version: '3.8'
 
 services:
   # --- Database Service (PostgreSQL 16) ---
@@ -66,6 +66,7 @@ services:
 
   # --- Backend Application Service (Spring Boot) ---
   app:
+    image: hallsync-backend:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -79,7 +80,7 @@ services:
       minio:
         condition: service_healthy
     ports:
-      - "8081:8081"
+      - "${PORT_BACKEND:-8081}:8081"
     environment:
       PORT: 8081
       SERVER_PORT: 8081
@@ -91,6 +92,7 @@ services:
       APP_JWT_SECRET: ${APP_JWT_SECRET:-KRCE-HallSync-COE-2026-Prod-8f3a9b7c4d2e1f0a5b6c7d8e9f0a1b2c3d4e5f6a}
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redispassword123}
@@ -125,10 +127,10 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 2G
+          memory: 1536M
         reservations:
           cpus: '0.25'
-          memory: 512M
+          memory: 256M
     logging:
       driver: "json-file"
       options:
@@ -137,6 +139,7 @@ services:
 
   # --- Frontend Application Service (Nginx + React SPA) ---
   frontend:
+    image: hallsync-frontend:latest
     build:
       context: ./allocate-artisan
       dockerfile: Dockerfile
@@ -146,14 +149,14 @@ services:
       app:
         condition: service_healthy
     ports:
-      - "8080:80"
+      - "${PORT_FRONTEND:-8080}:80"
     networks:
       - hallsync-network
     deploy:
       resources:
         limits:
           cpus: '1.0'
-          memory: 512M
+          memory: 256M
     logging:
       driver: "json-file"
       options:

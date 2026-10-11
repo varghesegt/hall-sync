@@ -2,6 +2,17 @@
 title HallSync - Database Restore Utility
 color 0D
 
+:: --- PATH RECOVERY ---
+if exist "%ProgramFiles%\Docker\Docker\resources\bin\docker.exe" (
+    set "PATH=%ProgramFiles%\Docker\Docker\resources\bin;%PATH%"
+)
+if exist "%LOCALAPPDATA%\Docker\resources\bin\docker.exe" (
+    set "PATH=%LOCALAPPDATA%\Docker\resources\bin;%PATH%"
+)
+if exist "C:\Program Files\Docker\Docker\resources\bin\docker.exe" (
+    set "PATH=C:\Program Files\Docker\Docker\resources\bin;%PATH%"
+)
+
 echo.
 echo  ╔═══════════════════════════════════════════════════════════╗
 echo  ║     HallSync - DATABASE RESTORE UTILITY                   ║

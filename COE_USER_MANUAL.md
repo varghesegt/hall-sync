@@ -83,21 +83,25 @@ Step 5: At end of day, double-click STOP.bat
 
 ## 4. The Buttons on Your Desktop
 
-You have 6 batch files (.bat). Here's what each does:
+You have batch files (.bat) for complete management. Here's what each does:
 
 | Button (File) | When to Use | Safe? |
 |---|---|---|
-| 📗 **START.bat** | Start the system every morning | ✅ Always safe |
+| 📗 **START.bat** | Start the system every morning (auto-heals errors, offline mode) | ✅ Always safe |
 | 📕 **STOP.bat** | Stop the system at end of day | ✅ Always safe |
-| 📘 **BACKUP.bat** | Save a copy of all data before cleanup | ✅ Always safe |
-| 📒 **HEALTH_CHECK.bat** | Check if everything is working | ✅ Always safe |
-| 📙 **RESTORE_DATABASE.bat** | Recover data from a backup file | ⚠️ Overwrites current data |
-| 📓 **CLEAN_DB.bat** | Erase all exam data (start fresh) | ❌ DESTRUCTIVE — asks for confirmation |
+| 📦 **EXPORT_FOR_OFFICE.bat** | Package all Docker images for USB / Offline COE Office PC | ✅ Always safe |
+| 🔄 **RESET_CONTAINERS.bat** | Fix port conflicts, stuck containers, or database version issues | ⚠️ Resets local volumes |
+| 📘 **BACKUP.bat** | Save a snapshot of all exam data to backups folder | ✅ Always safe |
+| 📒 **HEALTH_CHECK.bat** | Check if all 5 containers and database are healthy | ✅ Always safe |
+| 📙 **RESTORE_DATABASE.bat** | Recover data from a backup SQL file | ⚠️ Overwrites current data |
+| 📓 **CLEAN_DB.bat** | Erase session data for new semester (preserves halls) | ❌ Asks for confirmation |
 
 ### Rule of Thumb:
+- **Before taking to COE Office:** Double-click `EXPORT_FOR_OFFICE.bat` to bundle images onto USB.
 - **Every morning:** START.bat
 - **Every evening:** STOP.bat  
 - **Every week:** BACKUP.bat
+- **If any error occurs:** Run RESET_CONTAINERS.bat, then START.bat
 - **End of semester:** BACKUP.bat → then CLEAN_DB.bat
 
 ---
@@ -240,14 +244,53 @@ Distribute the printed hall slips to the invigilators. 🎉
 2. Select the backup file to restore from
 3. The data will be recovered
 
+### Problem: "Version Diff Error / Docker Compose Error"
+
+**Solution:**
+1. The new `docker-compose.yml` uses universal Compose specifications (`version: '3.8'`) supporting all versions.
+2. If an error persists:
+   - Double-click **RESET_CONTAINERS.bat**
+   - Then double-click **START.bat**
+3. `START.bat` will automatically auto-detect whether your computer uses `docker compose` (V2) or legacy `docker-compose` (V1).
+
+### Problem: "Postgres Database files are incompatible with server"
+
+**Solution:**
+This occurs when an older version of PostgreSQL was previously run on the office PC.
+1. Double-click **RESET_CONTAINERS.bat** to clear the old volume.
+2. Double-click **START.bat** to start fresh with PostgreSQL 16.
+3. If you have an existing backup, restore it using **RESTORE_DATABASE.bat**.
+
+### Problem: "Port 8080 or 8081 already allocated / In use"
+
+**Solution:**
+Another software (like Oracle XE or Tomcat) is using port 8080.
+1. Open the `.env` file in Notepad.
+2. Change:
+   ```env
+   PORT_FRONTEND=8090
+   PORT_BACKEND=8091
+   ```
+3. Save the file and double-click **START.bat**.
+4. Access the portal at `http://localhost:8090`.
+
+### Problem: "Office Computer has No Internet / Slow Internet"
+
+**Solution:**
+1. On your development laptop (connected to internet), double-click **EXPORT_FOR_OFFICE.bat**.
+2. It will save all 5 Docker containers into `docker-images\hallsync-images.tar`.
+3. Copy the entire folder to your Pendrive and plug it into the office PC.
+4. On the office PC, double-click **START.bat**.
+5. It will automatically load the images locally with **0 MB internet required**!
+
 ### Problem: "Need to move to a new computer"
 
 **Solution:**
-1. Run BACKUP.bat on old computer
-2. Copy entire `EXAM-SEAT-FINAL` folder + `backups` folder to new computer
-3. Install Docker Desktop on new computer
-4. Run START.bat on new computer
-5. Run RESTORE_DATABASE.bat with the backup file
+1. Run **BACKUP.bat** on the old computer to save your latest database snapshot.
+2. Run **EXPORT_FOR_OFFICE.bat** on your laptop/source PC to package all Docker containers into `docker-images\hallsync-images.tar`.
+3. Copy the entire HallSync folder + `backups` folder to your Pendrive and paste it onto the new computer.
+4. Run **START.bat** on the new computer (it will auto-load images with zero internet required).
+5. Run **RESTORE_DATABASE.bat** with your backup file if you want to restore past data.
 
 ---
 

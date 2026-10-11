@@ -3,6 +3,24 @@ setlocal EnableDelayedExpansion
 title HallSync - Stopping System
 color 0C
 
+:: --- PATH RECOVERY ---
+if exist "%ProgramFiles%\Docker\Docker\resources\bin\docker.exe" (
+    set "PATH=%ProgramFiles%\Docker\Docker\resources\bin;%PATH%"
+)
+if exist "%LOCALAPPDATA%\Docker\resources\bin\docker.exe" (
+    set "PATH=%LOCALAPPDATA%\Docker\resources\bin;%PATH%"
+)
+if exist "C:\Program Files\Docker\Docker\resources\bin\docker.exe" (
+    set "PATH=C:\Program Files\Docker\Docker\resources\bin;%PATH%"
+)
+
+set PROJECT_NAME=hallsync
+if exist .env (
+    for /f "usebackq tokens=1,2 delims==" %%a in (.env) do (
+        if "%%a"=="COMPOSE_PROJECT_NAME" set PROJECT_NAME=%%b
+    )
+)
+
 echo.
 echo  ╔═══════════════════════════════════════════════════════════╗
 echo  ║     HallSync - SHUTTING DOWN SYSTEM                       ║
@@ -20,17 +38,17 @@ if %errorlevel% neq 0 (
     )
 )
 
-:: 1. Stop Containers
+:: 1. Stop Containers Gracefully
 echo  [1/2] Stopping all services gracefully...
-%COMPOSE_CMD% stop
+%COMPOSE_CMD% -p %PROJECT_NAME% stop
 if %errorlevel% neq 0 (
-    echo      [WARNING] Issues stopping some services. Attempting forceful cleanup...
-    %COMPOSE_CMD% down
+    echo      [WARNING] Issues stopping some services. Performing clean teardown...
+    %COMPOSE_CMD% -p %PROJECT_NAME% down
 ) else (
     echo      ✓ Services stopped safely.
 )
 
-:: 2. Cleanup
+:: 2. Cleanup Temporary Parsing Files
 echo.
 echo  [2/2] Cleaning up session temporary files...
 if exist "data\parser-tmp" (
