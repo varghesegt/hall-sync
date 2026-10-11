@@ -24,8 +24,8 @@ public class ExcelServiceImpl implements ExcelService {
         ExamSession session = batch.getExamSession();
 
         Map<String, List<PdfAllocationView>> groupedByHall = allocations.stream()
-                .sorted(Comparator.comparing(PdfAllocationView::hallName))
-                .collect(Collectors.groupingBy(PdfAllocationView::hallName));
+                .sorted(Comparator.comparing(a -> Objects.toString(a.hallName(), a.hallId() != null ? a.hallId() : "Unknown")))
+                .collect(Collectors.groupingBy(a -> Objects.toString(a.hallName(), a.hallId() != null ? a.hallId() : "Unknown")));
 
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(200)) {
             workbook.setCompressTempFiles(true);
@@ -65,15 +65,18 @@ public class ExcelServiceImpl implements ExcelService {
                 hallCell.setCellStyle(hallNameStyle);
                 sheet.addMergedRegion(new CellRangeAddress(currentRow - 1, currentRow + 1, 0, 2));
 
-                String dateStr = session.getExamDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+                String dateStr = (session != null && session.getExamDate() != null)
+                        ? session.getExamDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+                        : "-";
                 Cell dateCell = metaRow.createCell(7);
                 dateCell.setCellValue("Date: " + dateStr);
                 dateCell.setCellStyle(metaBoldStyle);
                 sheet.addMergedRegion(new CellRangeAddress(currentRow - 1, currentRow - 1, 7, 9));
 
+                String sessStr = (session != null && session.getSession() != null) ? session.getSession() : "-";
                 Row sessionRow = sheet.createRow(currentRow++);
                 Cell sessionCell = sessionRow.createCell(7);
-                sessionCell.setCellValue("Session: " + session.getSession());
+                sessionCell.setCellValue("Session: " + sessStr);
                 sessionCell.setCellStyle(metaBoldStyle);
                 sheet.addMergedRegion(new CellRangeAddress(currentRow - 1, currentRow - 1, 7, 9));
 
@@ -87,10 +90,12 @@ public class ExcelServiceImpl implements ExcelService {
                 String[] columnLabels = {"I Row", "II Row", "III Row", "IV Row", "V Row", "VI Row", "VII Row", "VIII Row"};
 
                 for (PdfAllocationView a : hallAllocations) {
-                    if (a.seatRow() > maxRow) maxRow = a.seatRow();
-                    for (int i = 0; i < engineColNames.length; i++) {
-                        if (engineColNames[i].equals(a.seatCol()) && i > maxColIndex) {
-                            maxColIndex = i;
+                    if (a.seatRow() != null && a.seatRow() > maxRow) maxRow = a.seatRow();
+                    if (a.seatCol() != null) {
+                        for (int i = 0; i < engineColNames.length; i++) {
+                            if (engineColNames[i].equalsIgnoreCase(a.seatCol().trim()) && i > maxColIndex) {
+                                maxColIndex = i;
+                            }
                         }
                     }
                 }
@@ -220,7 +225,7 @@ public class ExcelServiceImpl implements ExcelService {
 
         // Group by Hall
         Map<String, List<SummaryAllocationView>> hallGroups = summaryData.stream()
-                .collect(Collectors.groupingBy(SummaryAllocationView::hallName));
+                .collect(Collectors.groupingBy(a -> Objects.toString(a.hallName(), a.hallId() != null ? a.hallId() : "Unknown")));
         List<String> sortedHalls = hallGroups.keySet().stream().sorted().toList();
 
         // Calculate Totals

@@ -2,6 +2,7 @@ package com.exam.service;
 
 import com.exam.dto.BatchStatusResponse;
 import com.exam.dto.PdfAllocationView;
+import com.exam.dto.GeneratedDocument;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.UUID;
@@ -14,4 +15,8 @@ public interface BatchService {
     void generateExcel(UUID batchId, OutputStream out);
     void generateExcelWithAllocations(UUID batchId, List<PdfAllocationView> allocations, OutputStream out);
     void generateSummaryExcel(UUID batchId, OutputStream out);
+
+    GeneratedDocument generatePdfDocument(UUID batchId);
+    GeneratedDocument generateExcelDocument(UUID batchId);
+    GeneratedDocument generateSummaryExcelDocument(UUID batchId);
 }

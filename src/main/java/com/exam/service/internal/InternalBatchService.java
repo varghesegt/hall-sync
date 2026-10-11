@@ -93,4 +93,49 @@ public class InternalBatchService {
         if (summaryData.isEmpty()) throw new ResourceNotFoundException("No allocations in batch: " + batchId);
         excelService.generateSummaryExcel(batch, summaryData, out);
     }
+
+    @Transactional(readOnly = true)
+    public com.exam.dto.GeneratedDocument generatePdfDocument(UUID batchId) {
+        AllocationBatch batch = batchRepo.findByIdWithSession(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found: " + batchId));
+        List<PdfAllocationView> allocations = allocationRepo.findPdfViewsByBatchId(batchId);
+        if (allocations.isEmpty()) throw new ResourceNotFoundException("No allocations in batch: " + batchId);
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream(64 * 1024);
+        pdfService.generateHallPdf(batch, allocations, baos);
+        String filename = formatBaseName(batch.getExamSession(), batchId) + ".pdf";
+        return new com.exam.dto.GeneratedDocument(baos.toByteArray(), filename);
+    }
+
+    @Transactional(readOnly = true)
+    public com.exam.dto.GeneratedDocument generateExcelDocument(UUID batchId) {
+        AllocationBatch batch = batchRepo.findByIdWithSession(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found: " + batchId));
+        List<PdfAllocationView> allocations = allocationRepo.findPdfViewsByBatchId(batchId);
+        if (allocations.isEmpty()) throw new ResourceNotFoundException("No allocations in batch: " + batchId);
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream(64 * 1024);
+        excelService.generateBatchExcel(batch, allocations, baos);
+        String filename = formatBaseName(batch.getExamSession(), batchId) + " - Allocation Sheet.xlsx";
+        return new com.exam.dto.GeneratedDocument(baos.toByteArray(), filename);
+    }
+
+    @Transactional(readOnly = true)
+    public com.exam.dto.GeneratedDocument generateSummaryExcelDocument(UUID batchId) {
+        AllocationBatch batch = batchRepo.findByIdWithSession(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found: " + batchId));
+        List<SummaryAllocationView> summaryData = allocationRepo.findSummaryViewsByBatchId(batchId);
+        if (summaryData.isEmpty()) throw new ResourceNotFoundException("No allocations in batch: " + batchId);
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream(64 * 1024);
+        excelService.generateSummaryExcel(batch, summaryData, baos);
+        String filename = formatBaseName(batch.getExamSession(), batchId) + " - Count Opening.xlsx";
+        return new com.exam.dto.GeneratedDocument(baos.toByteArray(), filename);
+    }
+
+    private String formatBaseName(com.exam.entity.ExamSession session, UUID batchId) {
+        if (session != null && session.getExamDate() != null) {
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+            String sess = session.getSession() != null ? session.getSession() : "FN";
+            return "Internal " + session.getExamDate().format(formatter) + " " + sess;
+        }
+        return "internal-allocation-" + batchId;
+    }
 }

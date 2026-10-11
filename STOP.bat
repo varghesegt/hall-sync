@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 title HallSync - Stopping System
 color 0C
 
@@ -9,14 +10,24 @@ echo  ║     Saving data and stopping servers...                   ║
 echo  ╚═══════════════════════════════════════════════════════════╝
 echo.
 
+:: Detect Docker Compose Command
+set COMPOSE_CMD=docker compose
+docker compose version >nul 2>&1
+if %errorlevel% neq 0 (
+    docker-compose version >nul 2>&1
+    if %errorlevel% equ 0 (
+        set COMPOSE_CMD=docker-compose
+    )
+)
+
 :: 1. Stop Containers
-echo  [1/2] Stopping all services...
-docker compose stop
+echo  [1/2] Stopping all services gracefully...
+%COMPOSE_CMD% stop
 if %errorlevel% neq 0 (
     echo      [WARNING] Issues stopping some services. Attempting forceful cleanup...
-    docker compose down
+    %COMPOSE_CMD% down
 ) else (
-    echo      ✓ Services stopped.
+    echo      ✓ Services stopped safely.
 )
 
 :: 2. Cleanup

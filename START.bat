@@ -18,7 +18,7 @@ echo  ╚═══════════════════════�
 echo.
 
 :: 1. Check if Docker is running
-echo  [1/3] Verifying Docker Desktop status...
+echo  [1/4] Verifying Docker Desktop status...
 docker info >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
@@ -26,7 +26,7 @@ if %errorlevel% neq 0 (
     echo.
     echo  Please:
     echo    1. Open Docker Desktop from the Start Menu
-    echo    2. Wait until the whale icon in taskbar is stable
+    echo    2. Wait until the Docker whale icon in taskbar says 'Running'
     echo    3. Run this START.bat again
     echo.
     pause
@@ -34,25 +34,55 @@ if %errorlevel% neq 0 (
 )
 echo      ✓ Docker is active.
 
-:: 2. Start Containers
+:: 2. Detect Docker Compose Command (supports modern 'docker compose' and legacy 'docker-compose')
 echo.
-echo  [2/3] Initializing Database and Application...
-echo        (This may take 30-60 seconds on the first run)
+echo  [2/4] Detecting Docker Compose engine...
+set COMPOSE_CMD=docker compose
+docker compose version >nul 2>&1
+if %errorlevel% neq 0 (
+    docker-compose version >nul 2>&1
+    if %errorlevel% equ 0 (
+        set COMPOSE_CMD=docker-compose
+        echo      ✓ Using legacy docker-compose CLI.
+    ) else (
+        echo  [ERROR] Neither 'docker compose' nor 'docker-compose' command was found.
+        echo  Please verify Docker Desktop installation.
+        pause
+        exit /b 1
+    )
+) else (
+    echo      ✓ Using Docker Compose V2 engine.
+)
+
+:: 3. Start Containers
+echo.
+echo  [3/4] Initializing Database, Cache, Storage and Application...
+echo        (This may take a moment while health checks initialize)
 echo.
 
-docker compose up -d --build
+%COMPOSE_CMD% up -d --build
 if %errorlevel% neq 0 (
     echo.
     echo  [ERROR] Failed to launch containers.
-    echo  Please ensure no other application is using port 8081.
+    echo.
+    echo  --- System Diagnostics ---
+    %COMPOSE_CMD% ps
+    echo.
+    echo  --- Application Logs ---
+    docker logs hallsync-backend --tail 30
+    echo.
+    echo  Troubleshooting Tips:
+    echo    1. If ports 8080 or 8081 are in use, close any background servers or local Java/Tomcat instances.
+    echo    2. Run STOP.bat to clean up existing stopped containers.
+    echo    3. Then re-run START.bat.
     echo.
     pause
     exit /b 1
 )
 
-:: 3. Smart Wait for Health
+:: 4. Smart Wait for Health
 echo.
-echo  [3/3] Waiting for HallSync to become ready...
+echo  [4/4] Waiting for HallSync to become ready...
 echo.
 
 set /a attempt=0

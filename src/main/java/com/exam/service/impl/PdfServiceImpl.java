@@ -56,8 +56,8 @@ public class PdfServiceImpl implements PdfService {
         ExamSession session = batch.getExamSession();
         
         Map<String, List<PdfAllocationView>> groupedByHall = allocations.stream()
-                .sorted(Comparator.comparing(PdfAllocationView::hallName))
-                .collect(Collectors.groupingBy(PdfAllocationView::hallName));
+                .sorted(Comparator.comparing(a -> Objects.toString(a.hallName(), a.hallId() != null ? a.hallId() : "Unknown")))
+                .collect(Collectors.groupingBy(a -> Objects.toString(a.hallName(), a.hallId() != null ? a.hallId() : "Unknown")));
 
         WriterProperties props = new WriterProperties().setFullCompressionMode(true);
         try (PdfWriter writer = new PdfWriter(outStream, props)) {
@@ -95,14 +95,17 @@ public class PdfServiceImpl implements PdfService {
                 metaTable.addCell(hallCell);
 
                 // Date and Session info
-                String dateStr = session.getExamDate().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+                String dateStr = (session != null && session.getExamDate() != null)
+                        ? session.getExamDate().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+                        : "-";
                 Cell dateCell = new Cell().add(new Paragraph("Date: " + dateStr).setFont(boldFont).setFontSize(10))
                         .setBorder(Border.NO_BORDER)
                         .setVerticalAlignment(com.itextpdf.layout.properties.VerticalAlignment.MIDDLE)
                         .setPaddingLeft(15);
                 metaTable.addCell(dateCell);
 
-                Cell sessionCell = new Cell().add(new Paragraph("Session: " + session.getSession()).setFont(boldFont).setFontSize(10).setTextAlignment(TextAlignment.RIGHT))
+                String sessStr = (session != null && session.getSession() != null) ? session.getSession() : "-";
+                Cell sessionCell = new Cell().add(new Paragraph("Session: " + sessStr).setFont(boldFont).setFontSize(10).setTextAlignment(TextAlignment.RIGHT))
                         .setBorder(Border.NO_BORDER)
                         .setVerticalAlignment(com.itextpdf.layout.properties.VerticalAlignment.MIDDLE);
                 metaTable.addCell(sessionCell);

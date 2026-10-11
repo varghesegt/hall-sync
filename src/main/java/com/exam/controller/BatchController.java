@@ -76,146 +76,90 @@ public class BatchController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("message", "Allocation failed. Please re-run allocation."));
         }
-        List<PdfAllocationView> preview = batchService.getPreviewData(batchId);
-        if (preview == null || preview.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("message", "No allocations found in batch: " + batchId));
-        }
 
-        String mdcToken = MDC.get("allocationRequestId");
-        String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
-        final String resolvedTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "krce";
+        com.exam.dto.GeneratedDocument doc = batchService.generatePdfDocument(batchId);
 
-        StreamingResponseBody stream = out -> {
-            try {
-                com.exam.config.tenant.TenantContext.setCurrentTenant(resolvedTenant);
-                if (mdcToken != null) MDC.put("allocationRequestId", mdcToken);
-                // Data fetch (projection DTOs) completes BEFORE stream writes begin,
-                // so no DB transaction is held open during the long-lived TCP stream.
-                batchService.generatePdfWithAllocations(batchId, preview, out);
-                out.flush();
-            } catch (IOException ioEx) {
-                // Client disconnect (browser closed, network drop) — not a real failure
-                if (isClientAbort(ioEx)) {
-                    logger.warn("Client aborted PDF download for batchId={}, requestId={}", batchId, mdcToken);
-                } else {
-                    logger.error("PDF stream I/O failure for batchId={}, requestId={}", batchId, mdcToken, ioEx);
-                    throw ioEx;
-                }
-            } catch (Exception e) {
-                logger.error("PDF generation failed for batchId={}, requestId={}", batchId, mdcToken, e);
-                throw new IOException("PDF generation failed", e);
-            } finally {
-                MDC.remove("allocationRequestId");
-                com.exam.config.tenant.TenantContext.clear();
-            }
-        };
-        
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
-        headers.setContentDispositionFormData("attachment", getFormattedBaseName(batchId) + ".pdf");
+        headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
+                .filename(doc.filename(), java.nio.charset.StandardCharsets.UTF_8)
+                .build());
         headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION);
-        
-        // Checklist 1: Strict Browser Edge caching guards
         headers.setCacheControl(CacheControl.noCache().getHeaderValue());
         headers.add(HttpHeaders.PRAGMA, "no-cache");
         headers.add(HttpHeaders.EXPIRES, "0");
-        
-        return new ResponseEntity<>(stream, headers, HttpStatus.OK);
-    }
 
-    /**
-     * Detects client-side connection abort scenarios.
-     * Prefers Tomcat's native type check; falls back to message-based detection
-     * for non-Tomcat containers or raw socket errors.
-     */
-    private boolean isClientAbort(IOException ex) {
-        // Type-based detection (Tomcat-native, container-safe)
-        if (ex instanceof org.apache.catalina.connector.ClientAbortException) {
-            return true;
-        }
-        // String fallback for non-Tomcat containers or OS-level resets
-        String msg = ex.getMessage();
-        return msg != null && (msg.contains("Broken pipe") || msg.contains("Connection reset by peer"));
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentLength(doc.bytes().length)
+                .body(doc.bytes());
     }
 
     @GetMapping(value = "/excel")
-    public ResponseEntity<StreamingResponseBody> downloadExcel(@PathVariable UUID batchId) {
-        String mdcToken = MDC.get("allocationRequestId");
-        String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
-        final String resolvedTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "krce";
+    public ResponseEntity<?> downloadExcel(@PathVariable UUID batchId) {
+        BatchStatusResponse status = batchService.getBatchStatus(batchId);
+        if (status == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Batch not found: " + batchId));
+        }
+        if ("RUNNING".equalsIgnoreCase(status.status())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "Allocation is still in progress. Please wait for completion."));
+        }
+        if ("FAILED".equalsIgnoreCase(status.status())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "Allocation failed. Please re-run allocation."));
+        }
 
-        StreamingResponseBody stream = out -> {
-            try {
-                com.exam.config.tenant.TenantContext.setCurrentTenant(resolvedTenant);
-                if (mdcToken != null) MDC.put("allocationRequestId", mdcToken);
-                batchService.generateExcel(batchId, out);
-                out.flush();
-            } catch (IOException ioEx) {
-                if (isClientAbort(ioEx)) {
-                    logger.warn("Client aborted Excel download for batchId={}, requestId={}", batchId, mdcToken);
-                } else {
-                    logger.error("Excel stream I/O failure for batchId={}, requestId={}", batchId, mdcToken, ioEx);
-                    throw ioEx;
-                }
-            } catch (Exception e) {
-                logger.error("Excel generation failed for batchId={}, requestId={}", batchId, mdcToken, e);
-                throw new IOException("Excel generation failed", e);
-            } finally {
-                MDC.remove("allocationRequestId");
-                com.exam.config.tenant.TenantContext.clear();
-            }
-        };
-        
+        com.exam.dto.GeneratedDocument doc = batchService.generateExcelDocument(batchId);
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-        headers.setContentDispositionFormData("attachment", getFormattedBaseName(batchId) + " - Allocation Sheet.xlsx");
+        headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
+                .filename(doc.filename(), java.nio.charset.StandardCharsets.UTF_8)
+                .build());
         headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION);
-        
         headers.setCacheControl(CacheControl.noCache().getHeaderValue());
         headers.add(HttpHeaders.PRAGMA, "no-cache");
         headers.add(HttpHeaders.EXPIRES, "0");
-        
-        return new ResponseEntity<>(stream, headers, HttpStatus.OK);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentLength(doc.bytes().length)
+                .body(doc.bytes());
     }
 
     @GetMapping(value = "/summary-excel")
-    public ResponseEntity<StreamingResponseBody> downloadSummaryExcel(@PathVariable UUID batchId) {
-        String mdcToken = MDC.get("allocationRequestId");
-        String tenantId = com.exam.config.tenant.TenantContext.getCurrentTenant();
-        final String resolvedTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "krce";
+    public ResponseEntity<?> downloadSummaryExcel(@PathVariable UUID batchId) {
+        BatchStatusResponse status = batchService.getBatchStatus(batchId);
+        if (status == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Batch not found: " + batchId));
+        }
+        if ("RUNNING".equalsIgnoreCase(status.status())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "Allocation is still in progress. Please wait for completion."));
+        }
+        if ("FAILED".equalsIgnoreCase(status.status())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "Allocation failed. Please re-run allocation."));
+        }
 
-        StreamingResponseBody stream = out -> {
-            try {
-                com.exam.config.tenant.TenantContext.setCurrentTenant(resolvedTenant);
-                if (mdcToken != null) MDC.put("allocationRequestId", mdcToken);
-                batchService.generateSummaryExcel(batchId, out);
-                out.flush();
-            } catch (IOException ioEx) {
-                if (isClientAbort(ioEx)) {
-                    logger.warn("Client aborted Summary Excel download for batchId={}, requestId={}", batchId, mdcToken);
-                } else {
-                    logger.error("Summary Excel stream I/O failure for batchId={}, requestId={}", batchId, mdcToken, ioEx);
-                    throw ioEx;
-                }
-            } catch (Exception e) {
-                logger.error("Summary Excel generation failed for batchId={}, requestId={}", batchId, mdcToken, e);
-                throw new IOException("Summary Excel generation failed", e);
-            } finally {
-                MDC.remove("allocationRequestId");
-                com.exam.config.tenant.TenantContext.clear();
-            }
-        };
-        
+        com.exam.dto.GeneratedDocument doc = batchService.generateSummaryExcelDocument(batchId);
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-        headers.setContentDispositionFormData("attachment", getFormattedBaseName(batchId) + " - Count Opening.xlsx");
+        headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
+                .filename(doc.filename(), java.nio.charset.StandardCharsets.UTF_8)
+                .build());
         headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION);
-        
         headers.setCacheControl(CacheControl.noCache().getHeaderValue());
         headers.add(HttpHeaders.PRAGMA, "no-cache");
         headers.add(HttpHeaders.EXPIRES, "0");
-        
-        return new ResponseEntity<>(stream, headers, HttpStatus.OK);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentLength(doc.bytes().length)
+                .body(doc.bytes());
     }
 }

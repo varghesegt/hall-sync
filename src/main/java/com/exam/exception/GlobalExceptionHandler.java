@@ -228,11 +228,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handle(Exception ex) {
-        logger.error("ERROR:", ex);
+        logger.error("Internal Server Error:", ex);
+        String detailMessage = ex.getMessage() != null && !ex.getMessage().isBlank()
+                ? ex.getMessage()
+                : "Internal server error occurred";
+        if (ex.getCause() != null && ex.getCause().getMessage() != null && !detailMessage.contains(ex.getCause().getMessage())) {
+            detailMessage += " (Cause: " + ex.getCause().getMessage() + ")";
+        }
         ErrorResponse response = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 ErrorCode.INTERNAL_SERVER_ERROR,
-                "Something went wrong",
+                detailMessage,
                 Collections.emptyList(),
                 resolveId(ex)
         );

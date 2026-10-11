@@ -81,6 +81,8 @@ services:
     ports:
       - "8081:8081"
     environment:
+      PORT: 8081
+      SERVER_PORT: 8081
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME:-exam_seat_allocation}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-jittu007}
@@ -100,7 +102,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
       JAVA_OPTS: >-
-        -Xms512m -Xmx2048m 
+        -Xms256m -Xmx1024m 
         -XX:+UseG1GC 
         -XX:MaxRAMPercentage=75.0 
         -XX:+ExitOnOutOfMemoryError
@@ -114,19 +116,19 @@ services:
     networks:
       - hallsync-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || curl -f http://localhost:8081/ || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 40s
     deploy:
       resources:
         limits:
           cpus: '2.0'
-          memory: 3G
+          memory: 2G
         reservations:
-          cpus: '0.5'
-          memory: 1G
+          cpus: '0.25'
+          memory: 512M
     logging:
       driver: "json-file"
       options:
